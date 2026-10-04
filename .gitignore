@@ -1,0 +1,13 @@
+# Backend
+campus-marketplace-api/target/
+campus-marketplace-api/.env
+campus-marketplace-api/.idea/
+*.iml
+
+# Frontend
+campus-marketplace-web/node_modules/
+campus-marketplace-web/dist/
+campus-marketplace-web/.env
+
+# General
+.DS_Store
