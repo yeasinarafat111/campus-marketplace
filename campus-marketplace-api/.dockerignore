@@ -1,0 +1,24 @@
+# Build output and VCS
+target/
+.git/
+.gitignore
+.gitattributes
+
+# Secrets and local config: pass these as runtime env vars, never bake them into the image
+.env
+.env.*
+!.env.example
+
+# IDE / OS files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.DS_Store
+
+# Docs and Docker files themselves
+HELP.md
+Dockerfile
+.dockerignore

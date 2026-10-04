@@ -1,0 +1,109 @@
+package com.campus.marketplace.controller;
+
+import com.campus.marketplace.dto.ListingRequest;
+import com.campus.marketplace.dto.ListingResponse;
+import com.campus.marketplace.dto.PageResponse;
+import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.ListingStatus;
+import com.campus.marketplace.service.ListingService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.math.BigDecimal;
+import java.net.URI;
+
+/**
+ * Access rules: GET /api/listings and GET /api/listings/{id} are public (see SecurityConfig);
+ * everything else requires a token. Ownership and ADMIN checks happen in {@link ListingService}.
+ */
+@RestController
+@RequestMapping("/api/listings")
+@RequiredArgsConstructor
+public class ListingController {
+
+    private final ListingService listingService;
+
+    @GetMapping
+    public PageResponse<ListingResponse> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+        return listingService.search(keyword, category, minPrice, maxPrice, page, size, sort, direction);
+    }
+
+    // Declared before /{id} for readability; Spring prefers the literal path either way.
+    @GetMapping("/mine")
+    public PageResponse<ListingResponse> mine(
+            @RequestParam(required = false) ListingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+        return listingService.mine(status, page, size, sort, direction);
+    }
+
+    @GetMapping("/{id}")
+    public ListingResponse get(@PathVariable Long id) {
+        return listingService.get(id);
+    }
+
+    /** JSON body; the image, if any, is given as {@code imageUrl}. */
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ListingResponse> create(@Valid @RequestBody ListingRequest request) {
+        return created(listingService.create(request));
+    }
+
+    /**
+     * multipart/form-data: the listing fields as form fields (title, description, price, category) plus an
+     * optional {@code image} file, which is uploaded to Cloudinary and overrides any {@code imageUrl} field.
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ListingResponse> createWithImage(
+            @Valid @ModelAttribute ListingRequest request,
+            @RequestPart(name = "image", required = false) MultipartFile image) {
+        return created(listingService.create(request, image));
+    }
+
+    private static ResponseEntity<ListingResponse> created(ListingResponse listing) {
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(listing.id()).toUri();
+        return ResponseEntity.created(location).body(listing);
+    }
+
+    @PutMapping("/{id}")
+    public ListingResponse update(@PathVariable Long id, @Valid @RequestBody ListingRequest request) {
+        return listingService.update(id, request);
+    }
+
+    @PatchMapping("/{id}/sold")
+    public ListingResponse markSold(@PathVariable Long id) {
+        return listingService.markSold(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        listingService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+}

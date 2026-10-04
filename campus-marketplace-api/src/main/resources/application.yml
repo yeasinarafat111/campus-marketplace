@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: campus-marketplace-api
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/campus_marketplace}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  servlet:
+    multipart:
+      # Spring's default is 1MB, too small for phone photos.
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:5MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:6MB}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+
+  mail:
+    # SMTP credentials from your hosting provider. Typical shared-hosting setups:
+    #   port 587 + MAIL_SMTP_STARTTLS=true  (STARTTLS)
+    #   port 465 + MAIL_SMTP_SSL=true and MAIL_SMTP_STARTTLS=false  (implicit SSL)
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
+            required: ${MAIL_SMTP_STARTTLS_REQUIRED:false}
+          ssl:
+            enable: ${MAIL_SMTP_SSL:false}
+          # Milliseconds. Without these, an unreachable SMTP server blocks the request indefinitely.
+          connectiontimeout: ${MAIL_SMTP_CONNECTION_TIMEOUT:10000}
+          timeout: ${MAIL_SMTP_TIMEOUT:10000}
+          writetimeout: ${MAIL_SMTP_WRITE_TIMEOUT:10000}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  jwt:
+    # Base64-encoded key of at least 256 bits (e.g. `openssl rand -base64 32`). No default on purpose.
+    secret: ${JWT_SECRET}
+    access-token-expiration: ${JWT_ACCESS_EXPIRATION:15m}
+    refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:7d}
+  registration:
+    # Only emails at exactly this domain may sign up (no subdomains).
+    allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:seu.edu.bd}
+  mail:
+    # Defaults to the SMTP username, since most shared hosts require From to match the login.
+    from: ${MAIL_FROM:${MAIL_USERNAME:no-reply@campus-marketplace.local}}
+  cloudinary:
+    # From the Cloudinary dashboard (Settings > API Keys). If unset, the app starts but uploads return 503.
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+    folder: ${CLOUDINARY_FOLDER:campus-marketplace/listings}
+  stripe:
+    # Test keys start with sk_test_. If unset, the app starts but checkout returns 503.
+    secret-key: ${STRIPE_SECRET_KEY:}
+    # Signing secret of the webhook endpoint (whsec_…). Without it, webhooks are rejected with 503.
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  payments:
+    currency: ${PAYMENT_CURRENCY:usd}
+    # Smallest currency unit (cents for usd). Stripe's minimum charge is USD 0.50.
+    feature-listing-amount: ${PAYMENT_FEATURE_LISTING_AMOUNT:199}
+    reserve-item-amount: ${PAYMENT_RESERVE_ITEM_AMOUNT:500}
+    # Frontend pages Stripe redirects to. {CHECKOUT_SESSION_ID} is filled in by Stripe.
+    success-url: ${PAYMENT_SUCCESS_URL:http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}}
+    cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:3000/payments/cancel}
+    feature-duration: ${PAYMENT_FEATURE_DURATION:7d}
+  otp:
+    expiration: ${OTP_EXPIRATION:10m}
+    max-attempts: ${OTP_MAX_ATTEMPTS:5}
+    resend-cooldown: ${OTP_RESEND_COOLDOWN:60s}

@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  mail:
+    # Tests never connect; this just lets the JavaMailSender bean be created.
+    host: localhost
+    port: 2525
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzLW9ubHktMzJieXRlcyE=
+    access-token-expiration: 15m
+    refresh-token-expiration: 7d
+  registration:
+    allowed-email-domain: seu.edu.bd
+  mail:
+    from: no-reply@seu.edu.bd
+  otp:
+    expiration: 10m
+    max-attempts: 5
+    resend-cooldown: 60s
+  cloudinary:
+    # Dummy values; tests mock ImageStorageService or the Cloudinary client and never call the API.
+    cloud-name: test-cloud
+    api-key: test-key
+    api-secret: test-secret
+    folder: test
+  stripe:
+    # Dummy key; tests mock CheckoutGateway or build params without calling Stripe.
+    secret-key: sk_test_dummy
+    webhook-secret: whsec_test_secret
+  payments:
+    currency: usd
+    feature-listing-amount: 199
+    reserve-item-amount: 500
+    success-url: http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}
+    cancel-url: http://localhost:3000/payments/cancel
+    feature-duration: 7d
