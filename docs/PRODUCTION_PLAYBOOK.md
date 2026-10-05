@@ -586,8 +586,8 @@ components.
 
 Claude Code ticks these off as it goes (`[x]`) and commits the change with the phase.
 
-- [x] **P0** Baseline green · actuator health · CI · .gitignore · reset-email confirmed  _(CI green pending user check on the Actions tab)_
-- [ ] **P1** Phone at signup · /me with name · profile + change password · phone banner
+- [x] **P0** Baseline green · actuator health · CI · .gitignore · reset-email confirmed  _(CI green)_
+- [x] **P1** Phone at signup · /me with name · profile + change password · phone banner
 - [ ] **P2** Design system · header + user menu · browse · detail · auth pages · my listings · create/edit · screenshots
 - [ ] **P3** FeeCalculator + tests · fee quote endpoint · price lock · UI quotes + reserve terms dialog
 - [ ] **P4** Order entity · PURCHASE flow · cancel/release/expiry · race refund · purchases/sales pages · success-page polling
