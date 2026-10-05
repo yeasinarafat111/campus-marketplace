@@ -109,12 +109,15 @@ function OrderCard({ order, kind }: { order: Order; kind: OrderKind }) {
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-3 rounded-lg bg-surface p-3 text-sm">
         <Amount label="Item price" value={cents(order.itemPriceCents)} />
-        <Amount label="Deposit" value={cents(order.depositCents)} />
-        <Amount label="Balance" value={cents(order.balanceCents)} />
+        <Amount label={order.paymentMethod === 'CASH' ? 'Deposit (online)' : 'Deposit'} value={cents(order.depositCents)} />
+        <Amount label={order.paymentMethod === 'CASH' ? 'Balance (cash)' : 'Balance'} value={cents(order.balanceCents)} />
       </dl>
       <p className="mt-2 text-xs text-muted">
-        {copy.money} {cents(order.itemPriceCents)} in total
-        {kind === 'sales' && order.status === 'COMPLETED' && order.payoutStatus === 'PENDING' ? ' (payout pending)' : ''}.
+        {order.paymentMethod === 'CASH'
+          ? kind === 'sales'
+            ? `Paid in cash: you received ${cents(order.balanceCents)} at the meetup. The platform holds your ${cents(order.depositCents)} deposit${order.payoutStatus === 'PENDING' ? ' (payout pending)' : ''}.`
+            : `Paid in cash: ${cents(order.balanceCents)} to the seller at the meetup, plus your ${cents(order.depositCents)} deposit.`
+          : <>{copy.money} {cents(order.itemPriceCents)} in total{kind === 'sales' && order.status === 'COMPLETED' && order.payoutStatus === 'PENDING' ? ' (payout pending)' : ''}.</>}
       </p>
       <Progress order={order} kind={kind} />
     </li>

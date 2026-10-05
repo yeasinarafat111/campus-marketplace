@@ -120,7 +120,10 @@ export default function AdminDashboardPage() {
               {orders.data?.content.map((o) => (
                 <tr key={o.id}>
                   <td className={td}>{o.listingTitle}<span className="block text-xs text-muted">{o.seller.fullName} · {formatDate(o.createdAt)}</span></td>
-                  <td className={`${td} tabular-nums`}>{formatCents(o.itemPriceCents)}</td>
+                  <td className={`${td} tabular-nums`}>
+                    {formatCents(o.owedToSellerCents)}
+                    {o.paymentMethod === 'CASH' && <span className="block text-xs text-muted">deposit only (cash sale)</span>}
+                  </td>
                   <td className={td}>
                     {o.status === 'COMPLETED' ? <Badge tone="success">Completed</Badge> : o.status === 'CANCELLED' ? <Badge tone="danger">Cancelled</Badge> : o.problemReportedAt ? <Badge tone="warning">Problem reported</Badge> : <Badge tone="neutral">Awaiting buyer</Badge>}
                   </td>

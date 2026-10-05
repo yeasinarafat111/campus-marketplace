@@ -29,6 +29,9 @@ export interface AdminOrder {
   balanceCents: number
   currency: string
   meetupSpot: string | null
+  paymentMethod: 'ONLINE' | 'CASH'
+  /** The whole price for an online sale, only the deposit for a cash one. */
+  owedToSellerCents: number
   status: 'PAID' | 'COMPLETED' | 'CANCELLED'
   payoutStatus: 'PENDING' | 'PAID_OUT'
   createdAt: string

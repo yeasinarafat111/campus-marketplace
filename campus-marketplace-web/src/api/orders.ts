@@ -13,6 +13,8 @@ export interface Order {
   balanceCents: number
   currency: string
   meetupSpot: MeetupSpot | null
+  /** CASH: the buyer paid the balance to the seller in person, so the platform only held the deposit. */
+  paymentMethod: 'ONLINE' | 'CASH'
   status: 'PAID' | 'COMPLETED' | 'CANCELLED'
   payoutStatus: 'PENDING' | 'PAID_OUT'
   createdAt: string

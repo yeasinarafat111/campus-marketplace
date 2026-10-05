@@ -32,6 +32,10 @@ export interface Listing {
   reservedByMe: boolean
   /** When the reservation lapses. Only for the two sides of a reservation. */
   reservationExpiresAt: string | null
+  /** The reserver chose to pay the balance in cash at the meetup. Visible to the two sides only. */
+  cashChosen: boolean
+  /** Price minus the deposit, in cents: what the reserver still owes, online or in cash. Parties only. */
+  balanceDueCents: number | null
   /** The other side's name and phone: the buyer to the seller, the seller to the buyer. Parties only. */
   counterparty: Contact | null
 }
@@ -121,5 +125,11 @@ export const cancelReservation = (id: number) =>
 /** Buyer: gives the item up. The deposit is kept. */
 export const releaseReservation = (id: number) =>
   client.post<Listing>(`/api/listings/${id}/reservation/release`).then((r) => r.data)
+
+/** Reserver: "I'll pay cash at the meetup". Records the choice; nothing is charged. */
+export const chooseCash = (id: number) => client.post<Listing>(`/api/listings/${id}/cash`).then((r) => r.data)
+
+/** Seller: "Confirm handover and cash received". Sells the item and completes the cash order. */
+export const confirmCashHandover = (id: number) => client.post(`/api/listings/${id}/cash/confirm`).then((r) => r.data)
 
 export const deleteListing = (id: number) => client.delete(`/api/listings/${id}`)

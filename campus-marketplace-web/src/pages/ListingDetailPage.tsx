@@ -40,9 +40,10 @@ export default function ListingDetailPage() {
   }
 
   const isOwner = user?.id === listing.owner.id
+  const managingReservation = listing.status === 'ACTIVE' && (listing.reservedByMe || (isOwner && listing.reserved))
 
   return (
-    <div className="pb-20 lg:pb-0">
+    <div className={managingReservation ? '' : 'pb-20 lg:pb-0'}>
       <Link to="/listings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-navy">
         <ArrowLeft className="size-4" aria-hidden />
         Back to browsing
@@ -68,7 +69,7 @@ export default function ListingDetailPage() {
                 {formatCategory(listing.category)} · Listed {timeAgo(listing.createdAt)}
               </p>
 
-              <div className="mt-5 hidden flex-col gap-2 lg:flex">
+              <div className={`mt-5 flex-col gap-2 ${managingReservation ? 'flex' : 'hidden lg:flex'}`}>
                 <ListingActions listing={listing} isOwner={isOwner} block />
               </div>
               {listing.status === 'ACTIVE' && listing.reserved && !isOwner && !listing.reservedByMe && (
@@ -101,10 +102,14 @@ export default function ListingDetailPage() {
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-3 lg:hidden">
-        <PriceTag price={listing.price} size="lg" className="mr-auto" />
-        <ListingActions listing={listing} isOwner={isOwner} compact />
-      </div>
+      {/* The phone's action bar is for the simple cases. When you hold or manage a reservation there are too many
+          choices for a bar (pay online or cash, release, cancel, confirm), so the full panel shows instead. */}
+      {!managingReservation && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-3 lg:hidden">
+          <PriceTag price={listing.price} size="lg" className="mr-auto" />
+          <ListingActions listing={listing} isOwner={isOwner} compact />
+        </div>
+      )}
     </div>
   )
 }
