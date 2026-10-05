@@ -76,6 +76,11 @@ function ListingForm({ existing }: { existing?: Listing }) {
     e.preventDefault()
     setError('')
     setFieldErrors({})
+    // Same rule as the backend (decision D7): free, or at least $1.00.
+    if (priceValid && price > 0 && price < 1) {
+      setFieldErrors({ price: 'Price must be 0 (free) or at least 1.00' })
+      return
+    }
     save.mutate()
   }
 
@@ -104,7 +109,7 @@ function ListingForm({ existing }: { existing?: Listing }) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Price (USD)" error={fieldErrors.price}
-            hint={priceValid ? <>Buyers will see <strong className="tabular-nums text-ink">{price === 0 ? 'Free' : formatPrice(price)}</strong></> : undefined}>
+            hint={priceValid ? <>Buyers will see <strong className="tabular-nums text-ink">{price === 0 ? 'Free' : formatPrice(price)}</strong>. Free, or at least $1.00.</> : 'Free, or at least $1.00.'}>
             <div className="relative">
               <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
               <Input name="price" type="number" inputMode="decimal" min="0" step="0.01" required className="pl-7 tabular-nums"
