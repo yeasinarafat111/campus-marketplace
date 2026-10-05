@@ -44,6 +44,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/error").permitAll()
+                        // WebSocket handshake: browsers can't send an Authorization header here, so the token is
+                        // checked at STOMP CONNECT instead (StompAuthChannelInterceptor).
+                        .requestMatchers("/ws/**").permitAll()
                         // Liveness/readiness probe; the only actuator endpoint exposed (see application.yml).
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
