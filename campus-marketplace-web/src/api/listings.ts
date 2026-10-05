@@ -180,3 +180,9 @@ export const chooseCash = (id: number) => client.post<Listing>(`/api/listings/${
 export const confirmCashHandover = (id: number) => client.post(`/api/listings/${id}/cash/confirm`).then((r) => r.data)
 
 export const deleteListing = (id: number) => client.delete(`/api/listings/${id}`)
+
+export const saveListing = (id: number) => client.post(`/api/listings/${id}/save`).then(() => undefined)
+export const unsaveListing = (id: number) => client.delete(`/api/listings/${id}/save`).then(() => undefined)
+export const getSavedIds = () => client.get<number[]>('/api/users/me/saved/ids').then((r) => r.data)
+export const getSaved = (params: { page?: number; size?: number }) =>
+  client.get<Page<Listing>>('/api/users/me/saved', { params }).then((r) => r.data)

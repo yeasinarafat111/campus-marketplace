@@ -1,4 +1,4 @@
-import { LayoutDashboard, List, LogOut, Menu, MessageCircle, Plus, Receipt, Search, ShoppingBag, User as UserIcon } from 'lucide-react'
+import { Heart, LayoutDashboard, List, LogOut, Menu, MessageCircle, Plus, Receipt, Search, ShoppingBag, User as UserIcon } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -87,6 +87,9 @@ function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuLink to="/my-listings" icon={<List className="size-4 text-muted" aria-hidden />}>
           My listings
+        </DropdownMenuLink>
+        <DropdownMenuLink to="/saved" icon={<Heart className="size-4 text-muted" aria-hidden />}>
+          Saved
         </DropdownMenuLink>
         <DropdownMenuLink to="/messages" icon={<MessageCircle className="size-4 text-muted" aria-hidden />}>
           Messages
@@ -191,6 +194,7 @@ export default function Header() {
           {isAuthenticated ? (
             <>
               <MobileLink to="/my-listings" onClick={closeNav}>My listings</MobileLink>
+              <MobileLink to="/saved" onClick={closeNav}>Saved</MobileLink>
               <MobileLink to="/messages" onClick={closeNav}>Messages</MobileLink>
               <MobileLink to="/purchases" onClick={closeNav}>Purchases</MobileLink>
               <MobileLink to="/sales" onClick={closeNav}>Sales</MobileLink>

@@ -12,6 +12,7 @@ import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingImageService;
 import com.campus.marketplace.service.ListingService;
+import com.campus.marketplace.service.SavedListingService;
 import com.campus.marketplace.service.PaymentService;
 import com.campus.marketplace.service.PublicListingReader;
 import com.campus.marketplace.service.ReservationService;
@@ -53,6 +54,7 @@ public class ListingController {
     private final ReservationService reservationService;
     private final PublicListingReader publicListingReader;
     private final ListingImageService imageService;
+    private final SavedListingService savedListingService;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -108,6 +110,19 @@ public class ListingController {
     @GetMapping("/{id}")
     public ListingResponse get(@PathVariable Long id) {
         return listingService.get(id);
+    }
+
+    /** Bookmarks the listing for the caller. Idempotent. */
+    @PostMapping("/{id}/save")
+    public ResponseEntity<Void> save(@PathVariable Long id) {
+        savedListingService.save(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/save")
+    public ResponseEntity<Void> unsave(@PathVariable Long id) {
+        savedListingService.unsave(id);
+        return ResponseEntity.noContent().build();
     }
 
     /** Adds a photo (multipart field {@code image}), up to five. Owner only. */

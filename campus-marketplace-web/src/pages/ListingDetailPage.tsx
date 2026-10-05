@@ -8,6 +8,7 @@ import MessageSellerButton from '../components/MessageSellerButton'
 import Avatar from '../components/ui/Avatar'
 import { buttonClasses } from '../components/ui/buttonClasses'
 import { PhotoGallery } from '../components/PhotoGallery'
+import SaveButton from '../components/SaveButton'
 import PriceTag from '../components/ui/PriceTag'
 import Skeleton from '../components/ui/Skeleton'
 import StatePanel from '../components/StatePanel'
@@ -68,6 +69,7 @@ export default function ListingDetailPage() {
               <p className="mt-1 text-sm text-muted">
                 {formatCategory(listing.category)} · Listed {timeAgo(listing.createdAt)}
               </p>
+              {!isOwner && <SaveButton listingId={listing.id} withLabel className="mt-3 border border-line" />}
 
               <div className={`mt-5 flex-col gap-2 ${managingReservation ? 'flex' : 'hidden lg:flex'}`}>
                 <ListingActions listing={listing} isOwner={isOwner} block />

@@ -17,6 +17,7 @@ const ListingDetailPage = lazy(() => import('./pages/ListingDetailPage'))
 const ListingsPage = lazy(() => import('./pages/ListingsPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const MyListingsPage = lazy(() => import('./pages/MyListingsPage'))
+const SavedPage = lazy(() => import('./pages/SavedPage'))
 const OrdersPage = lazy(() => import('./pages/OrdersPage'))
 const PaymentCancelPage = lazy(() => import('./pages/PaymentCancelPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="/listings/new" element={<CreateEditListingPage />} />
                 <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
                 <Route path="/my-listings" element={<MyListingsPage />} />
+                <Route path="/saved" element={<SavedPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/messages/:id" element={<MessagesPage />} />
