@@ -66,6 +66,7 @@ public class PaymentService {
                 FeeCalculator.toCents(price) - feeCents,
                 paymentProperties.currency(),
                 feeCalculator.rateFor(price),
+                paymentProperties.fee().minimumCents(),
                 price.setScale(2, RoundingMode.HALF_UP).toPlainString(),
                 paymentProperties.featureDuration().toDays(),
                 paymentProperties.reservationDuration().toHours());

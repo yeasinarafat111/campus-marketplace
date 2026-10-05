@@ -194,6 +194,7 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.purchaseCents").value(1150))
                 .andExpect(jsonPath("$.currency").value("usd"))
                 .andExpect(jsonPath("$.rate").value(0.03))
+                .andExpect(jsonPath("$.minimumCents").value(50))
                 .andExpect(jsonPath("$.basis").value("12.00"))
                 .andExpect(jsonPath("$.featureDays").value(7))
                 .andExpect(jsonPath("$.reservationHours").value(48));
