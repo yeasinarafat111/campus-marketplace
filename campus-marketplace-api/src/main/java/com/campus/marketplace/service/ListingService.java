@@ -9,6 +9,7 @@ import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.entity.User;
 import com.campus.marketplace.exception.BadRequestException;
+import com.campus.marketplace.exception.ConflictException;
 import com.campus.marketplace.exception.ForbiddenException;
 import com.campus.marketplace.exception.ResourceNotFoundException;
 import com.campus.marketplace.repository.ListingRepository;
@@ -147,11 +148,19 @@ public class ListingService {
         }
     }
 
-    /** Full replacement of the editable fields. Owner only (admins can delete, not edit). */
+    /**
+     * Full replacement of the editable fields. Owner only (admins can delete, not edit). The price can't
+     * change while the item is reserved: the buyer's deposit and the balance they owe at Buy were computed
+     * from it. The row is locked so a reservation landing at the same moment (the webhook locks it too)
+     * can't slip in between this check and the save.
+     */
     @Transactional
     public ListingResponse update(Long id, ListingRequest request) {
-        Listing listing = findWithOwner(id);
+        Listing listing = listingRepository.findForUpdateById(id).orElseThrow(() -> notFound(id));
         requireOwner(listing, "You can only edit your own listings");
+        if (listing.isReserved() && request.price().compareTo(listing.getPrice()) != 0) {
+            throw new ConflictException("Price can't change while the item is reserved");
+        }
         apply(request, listing);
         return ListingResponse.from(listing);
     }

@@ -1,6 +1,7 @@
 package com.campus.marketplace.dto;
 
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.validation.ValidListingPrice;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,7 @@ public record ListingRequest(
 
         @NotNull(message = "Price is required")
         @DecimalMin(value = "0.00", message = "Price cannot be negative")
+        @ValidListingPrice
         @Digits(integer = 8, fraction = 2, message = "Price must have at most 8 digits and 2 decimal places")
         BigDecimal price,
 

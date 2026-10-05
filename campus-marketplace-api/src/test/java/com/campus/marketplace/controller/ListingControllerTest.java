@@ -420,6 +420,64 @@ class ListingControllerTest {
     }
 
     @Test
+    void update_priceOfReservedListing_returns409_butOtherFieldsCanChange() throws Exception {
+        Listing listing = saveListing("Calculus Textbook", Category.BOOKS, "450.50", ListingStatus.ACTIVE, alice);
+        listing.setReservedBy(bob);
+        listing.setReservedAt(Instant.now());
+        listingRepository.save(listing);
+
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Calculus Textbook\",\"price\":400,\"category\":\"BOOKS\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Price can't change while the item is reserved"));
+        assertThat(listingRepository.findById(listing.getId()).orElseThrow().getPrice()).isEqualByComparingTo("450.50");
+
+        // Same price (even written differently) and a new title: allowed.
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Calculus, 8th ed\",\"price\":450.5,\"category\":\"BOOKS\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Calculus, 8th ed"))
+                .andExpect(jsonPath("$.reserved").value(true));
+    }
+
+    @Test
+    void update_priceOfUnreservedListing_isAllowed() throws Exception {
+        Listing listing = saveListing("Lamp", Category.OTHER, "20.00", ListingStatus.ACTIVE, alice);
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":15,\"category\":\"OTHER\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.price").value(15));
+    }
+
+    @Test
+    void price_mustBeFreeOrAtLeastOneDollar() throws Exception {
+        for (String price : new String[] {"0.01", "0.50", "0.99"}) {
+            mockMvc.perform(json(post("/api/listings"), aliceToken,
+                            "{\"title\":\"Pen\",\"price\":" + price + ",\"category\":\"STATIONERY\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors.price").value("Price must be 0 (free) or at least 1.00"));
+        }
+        for (String price : new String[] {"0", "0.00", "1", "1.00", "1.01", "250.75"}) {
+            mockMvc.perform(json(post("/api/listings"), aliceToken,
+                            "{\"title\":\"Pen\",\"price\":" + price + ",\"category\":\"STATIONERY\"}"))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void price_ruleAlsoAppliesOnUpdate() throws Exception {
+        Listing listing = saveListing("Lamp", Category.OTHER, "20.00", ListingStatus.ACTIVE, alice);
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":0.75,\"category\":\"OTHER\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.price").value("Price must be 0 (free) or at least 1.00"));
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":0,\"category\":\"OTHER\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.price").value(0));
+    }
+
+    @Test
     void update_byOtherUser_orAdmin_returns403() throws Exception {
         Listing listing = saveListing("Mine", Category.OTHER, "100", ListingStatus.ACTIVE, alice);
 
