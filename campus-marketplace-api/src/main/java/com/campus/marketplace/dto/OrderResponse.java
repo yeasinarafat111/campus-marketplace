@@ -37,8 +37,22 @@ public record OrderResponse(
         Instant autoCompleteAt,
         Instant problemReportedAt,
         String problemReason,
-        ListingResponse.Contact counterparty
+        ListingResponse.Contact counterparty,
+        /** Buyer's view only: the order is completed and not rated yet. */
+        boolean canRate,
+        /** The buyer's rating of the seller, once given. Both sides see it. */
+        Rating rating
 ) {
+    public record Rating(int stars, String comment, Instant createdAt) {
+    }
+
+    /** This order with its rating attached (and so no longer rate-able). */
+    public OrderResponse withRating(com.campus.marketplace.entity.Rating r) {
+        return new OrderResponse(id, listingId, listingTitle, listingImageUrl, itemPriceCents, depositCents, balanceCents,
+                currency, meetupSpot, paymentMethod, status, payoutStatus, createdAt, completedAt, autoCompleteAt,
+                problemReportedAt, problemReason, counterparty, false, new Rating(r.getStars(), r.getComment(), r.getCreatedAt()));
+    }
+
     /** Call inside a transaction (reads the lazy listing id, buyer and seller). */
     public static OrderResponse forBuyer(Order order, Duration autoCompleteAfter) {
         return of(order, order.getSeller(), true, autoCompleteAfter);
@@ -68,6 +82,8 @@ public record OrderResponse(
                 waiting ? order.getCreatedAt().plus(autoCompleteAfter) : null,
                 order.getProblemReportedAt(),
                 forBuyer ? order.getProblemReason() : null,
-                new ListingResponse.Contact(counterparty.getId(), counterparty.getFullName(), counterparty.getPhone()));
+                new ListingResponse.Contact(counterparty.getId(), counterparty.getFullName(), counterparty.getPhone()),
+                forBuyer && order.getStatus() == OrderStatus.COMPLETED,
+                null);
     }
 }

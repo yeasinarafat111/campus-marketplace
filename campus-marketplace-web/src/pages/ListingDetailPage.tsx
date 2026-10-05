@@ -1,6 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { CONDITION_LABELS, MEETUP_LABELS, type Listing } from '../api/listings'
+import { CONDITION_LABELS, MEETUP_LABELS, getSellerProfile, type Listing } from '../api/listings'
+import { Stars } from '../components/StarRating'
 import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
@@ -173,6 +175,9 @@ function SoldNote({ listing, isOwner }: { listing: Listing; isOwner: boolean }) 
 }
 
 function SellerCard({ listing }: { listing: Listing }) {
+  // Fetched separately from the listing: the rating changes on its own and the listing is cached.
+  const profile = useQuery({ queryKey: ['seller-profile', String(listing.owner.id)], queryFn: () => getSellerProfile(listing.owner.id), staleTime: 60_000 })
+  const rating = profile.data
   return (
     <section aria-labelledby="seller-heading" className="rounded-xl border border-line bg-white p-5">
       <h2 id="seller-heading" className="sr-only">Seller</h2>
@@ -181,6 +186,13 @@ function SellerCard({ listing }: { listing: Listing }) {
         <div className="min-w-0">
           <p className="truncate font-semibold text-ink">{listing.owner.fullName}</p>
           <p className="text-sm text-muted">Member since {formatMonthYear(listing.owner.memberSince)}</p>
+          {rating && rating.averageRating !== null && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink">
+              <Stars value={rating.averageRating} />
+              <span className="tabular-nums">{rating.averageRating.toFixed(1)}</span>
+              <span className="text-muted">({rating.ratingCount})</span>
+            </p>
+          )}
         </div>
       </Link>
       <Link to={`/users/${listing.owner.id}`} className="mt-4 inline-block text-sm font-semibold text-navy underline-offset-2 hover:underline">

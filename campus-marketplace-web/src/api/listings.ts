@@ -191,6 +191,16 @@ export interface SellerProfile {
   ratingCount: number
 }
 
+export interface SellerReview {
+  stars: number
+  comment: string | null
+  reviewer: string
+  createdAt: string
+}
+
+export const getSellerReviews = (id: string | number, params: { page?: number; size?: number } = {}) =>
+  client.get<Page<SellerReview>>(`/api/users/${id}/ratings`, { params }).then((r) => r.data)
+
 export const getSellerProfile = (id: string | number) =>
   client.get<SellerProfile>(`/api/users/${id}/profile`).then((r) => r.data)
 

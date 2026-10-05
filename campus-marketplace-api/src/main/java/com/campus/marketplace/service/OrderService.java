@@ -40,6 +40,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CurrentUserProvider currentUser;
+    private final com.campus.marketplace.repository.RatingRepository ratingRepository;
 
     /** How long after payment a PAID order completes by itself. */
     @Value("${app.orders.auto-complete-after:72h}")
@@ -48,15 +49,17 @@ public class OrderService {
     /** The caller's own purchases, newest first. */
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> purchases(int page, int size) {
-        return PageResponse.of(orderRepository.findByBuyerId(currentUser.requireId(), pageable(page, size)),
-                o -> OrderResponse.forBuyer(o, autoCompleteAfter));
+        var orders = orderRepository.findByBuyerId(currentUser.requireId(), pageable(page, size));
+        var ratings = ratingsByOrder(orders.getContent());
+        return PageResponse.of(orders, o -> withRating(OrderResponse.forBuyer(o, autoCompleteAfter), ratings.get(o.getId())));
     }
 
     /** The caller's own sales, newest first. */
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> sales(int page, int size) {
-        return PageResponse.of(orderRepository.findBySellerId(currentUser.requireId(), pageable(page, size)),
-                o -> OrderResponse.forSeller(o, autoCompleteAfter));
+        var orders = orderRepository.findBySellerId(currentUser.requireId(), pageable(page, size));
+        var ratings = ratingsByOrder(orders.getContent());
+        return PageResponse.of(orders, o -> withRating(OrderResponse.forSeller(o, autoCompleteAfter), ratings.get(o.getId())));
     }
 
     /**
@@ -166,6 +169,19 @@ public class OrderService {
     }
 
     /** 404 if it doesn't exist; 403 unless the caller is the order's buyer. */
+    /** One query for the whole page, so listing orders doesn't cost a rating lookup per order. */
+    private java.util.Map<Long, com.campus.marketplace.entity.Rating> ratingsByOrder(java.util.List<Order> orders) {
+        if (orders.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return ratingRepository.findByOrderIds(orders.stream().map(Order::getId).toList()).stream()
+                .collect(java.util.stream.Collectors.toMap(r -> r.getOrder().getId(), r -> r));
+    }
+
+    private static OrderResponse withRating(OrderResponse response, com.campus.marketplace.entity.Rating rating) {
+        return rating == null ? response : response.withRating(rating);
+    }
+
     private Order lockOwnedByBuyer(Long orderId) {
         Order order = lock(orderId);
         if (!Objects.equals(order.getBuyer().getId(), currentUser.requireId())) {

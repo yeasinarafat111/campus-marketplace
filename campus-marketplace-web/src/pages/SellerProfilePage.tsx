@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { Star } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { getSellerProfile, searchListings } from '../api/listings'
+import { getSellerProfile, getSellerReviews, searchListings } from '../api/listings'
+import { Stars } from '../components/StarRating'
 import ListingCard from '../components/ListingCard'
 import Avatar from '../components/ui/Avatar'
 import Skeleton, { ListingCardSkeleton } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { formatMonthYear } from '../lib'
+import { formatDate, formatMonthYear } from '../lib'
 import NotFoundPage from './NotFoundPage'
 
 /** Public: name, member since, counts and the seller's active listings. No contact details. */
@@ -19,6 +20,11 @@ export default function SellerProfilePage() {
     queryKey: ['listings', { seller: id, profile: true }],
     queryFn: () => searchListings({ ownerId: Number(id), size: 40 }),
     enabled: profile.isSuccess,
+  })
+  const reviews = useQuery({
+    queryKey: ['seller-reviews', id],
+    queryFn: () => getSellerReviews(id, { size: 10 }),
+    enabled: profile.isSuccess && (profile.data?.ratingCount ?? 0) > 0,
   })
   useDocumentTitle(profile.data?.fullName ?? 'Seller')
 
@@ -43,6 +49,24 @@ export default function SellerProfilePage() {
             star={p.averageRating !== null} />
         </dl>
       </section>
+
+      {reviews.data && reviews.data.content.length > 0 && (
+        <section aria-labelledby="reviews-heading" className="mt-8">
+          <h2 id="reviews-heading" className="mb-3 text-lg font-semibold text-ink">Reviews</h2>
+          <ul className="divide-y divide-line rounded-xl border border-line bg-white">
+            {reviews.data.content.map((r, i) => (
+              <li key={i} className="p-4">
+                <p className="flex flex-wrap items-center gap-2 text-sm">
+                  <Stars value={r.stars} />
+                  <span className="font-medium text-ink">{r.reviewer}</span>
+                  <span className="text-muted">{formatDate(r.createdAt)}</span>
+                </p>
+                {r.comment && <p className="mt-1 text-sm text-ink">{r.comment}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <h2 className="mb-4 mt-8 text-lg font-semibold text-ink">Listings</h2>
       {listings.isPending && (

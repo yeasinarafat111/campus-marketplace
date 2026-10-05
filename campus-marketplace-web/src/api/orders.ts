@@ -26,6 +26,10 @@ export interface Order {
   problemReason: string | null
   /** The other side of the order: the seller on a purchase, the buyer on a sale. */
   counterparty: Contact
+  /** Buyer's view: the order is complete and not rated yet. */
+  canRate: boolean
+  /** The buyer's rating of the seller; both sides see it. */
+  rating: { stars: number; comment: string | null; createdAt: string } | null
 }
 
 export type OrderKind = 'purchases' | 'sales'
@@ -39,3 +43,7 @@ export const confirmReceipt = (id: number) => client.post<Order>(`/api/orders/${
 /** Buyer: report a problem. Freezes the order until an admin resolves it. */
 export const reportProblem = (id: number, reason: string) =>
   client.post<Order>(`/api/orders/${id}/report`, { reason }).then((r) => r.data)
+
+/** Buyer: rate the seller 1-5 once the order is complete. One rating per order. */
+export const rateOrder = (id: number, stars: number, comment: string) =>
+  client.post<Order>(`/api/orders/${id}/rating`, { stars, comment: comment.trim() || null }).then((r) => r.data)

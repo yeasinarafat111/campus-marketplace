@@ -10,6 +10,8 @@ import Alert from '../components/Alert'
 import Pagination from '../components/Pagination'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import RateSellerButton from '../components/RateSellerButton'
+import { Stars } from '../components/StarRating'
 import Dialog, { ConfirmDialog } from '../components/ui/Dialog'
 import { Textarea } from '../components/ui/Input'
 import Field from '../components/ui/Field'
@@ -146,7 +148,21 @@ function Progress({ order, kind }: { order: Order; kind: OrderKind }) {
 
   if (order.status === 'CANCELLED') return <Note tone="danger">This order was cancelled.</Note>
   if (order.status === 'COMPLETED') {
-    return <Note tone="success">Completed{order.completedAt ? ` on ${formatDate(order.completedAt)}` : ''}.</Note>
+    return (
+      <>
+        <Note tone="success">Completed{order.completedAt ? ` on ${formatDate(order.completedAt)}` : ''}.</Note>
+        {kind === 'purchases' && order.canRate && <div className="mt-3"><RateSellerButton order={order} /></div>}
+        {order.rating && (
+          <div className="mt-3 rounded-lg bg-surface p-3 text-sm">
+            <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
+              <Stars value={order.rating.stars} />
+              {kind === 'purchases' ? 'You rated this seller' : `${order.counterparty.fullName} rated you`}
+            </p>
+            {order.rating.comment && <p className="mt-1 text-muted">“{order.rating.comment}”</p>}
+          </div>
+        )}
+      </>
+    )
   }
   if (order.problemReportedAt) {
     return <Note tone="warning">Problem reported on {formatDate(order.problemReportedAt)}. An admin is looking into it, and nothing completes automatically meanwhile.</Note>

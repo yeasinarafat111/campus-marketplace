@@ -7,6 +7,8 @@ import com.campus.marketplace.dto.UpdateProfileRequest;
 import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.SellerProfileResponse;
+import com.campus.marketplace.dto.SellerReviewResponse;
+import com.campus.marketplace.service.RatingService;
 import com.campus.marketplace.service.SavedListingService;
 import com.campus.marketplace.service.SellerProfileService;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +32,7 @@ public class UserController {
     private final UserService userService;
     private final SavedListingService savedListingService;
     private final SellerProfileService sellerProfileService;
+    private final RatingService ratingService;
 
     /** The caller's own profile (including phone), so the SPA can show who is logged in. */
     @GetMapping("/me")
@@ -46,6 +49,14 @@ public class UserController {
     @GetMapping("/{id}/profile")
     public SellerProfileResponse profile(@PathVariable Long id) {
         return sellerProfileService.get(id);
+    }
+
+    /** Public: what buyers said about this seller, newest first. */
+    @GetMapping("/{id}/ratings")
+    public PageResponse<SellerReviewResponse> ratings(@PathVariable Long id, @RequestParam(defaultValue = "0") int page,
+                                                      @RequestParam(defaultValue = "10") int size) {
+        sellerProfileService.get(id); // 404 for unknown or deactivated sellers
+        return ratingService.reviews(id, page, size);
     }
 
     /** The listings the caller saved, newest first. */

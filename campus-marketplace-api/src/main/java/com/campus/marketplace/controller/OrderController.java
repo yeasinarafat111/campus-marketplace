@@ -3,7 +3,9 @@ package com.campus.marketplace.controller;
 import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.ReportProblemRequest;
+import com.campus.marketplace.dto.RatingRequest;
 import com.campus.marketplace.service.OrderService;
+import com.campus.marketplace.service.RatingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderService orderService;
+    private final RatingService ratingService;
 
     @GetMapping("/purchases")
     public PageResponse<OrderResponse> purchases(@RequestParam(defaultValue = "0") int page,
@@ -38,6 +41,12 @@ public class OrderController {
     @PostMapping("/{id}/report")
     public OrderResponse report(@PathVariable Long id, @Valid @RequestBody ReportProblemRequest request) {
         return orderService.reportProblem(id, request.reason());
+    }
+
+    /** Buyer: rate the seller 1-5 (and optionally comment) once the order is complete. One rating per order. */
+    @PostMapping("/{id}/rating")
+    public OrderResponse rate(@PathVariable Long id, @Valid @RequestBody RatingRequest request) {
+        return ratingService.rate(id, request);
     }
 
     @GetMapping("/sales")
