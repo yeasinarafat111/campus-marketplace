@@ -356,8 +356,8 @@ and for webhook idempotency on `PURCHASE`.
 
 ## Order of work from here (agreed 2026-10-05)
 
-P4 → **P4a** (finish Phase 4: UI, real-Stripe verification, push; then **stop and give the deploy plan**, wait
-for "go", deploy backend, check `/actuator/health`, deploy frontend) → **P3b** → **P4b** → **P4c** → P5 → P6.
+P4 → P4a (deployed 2026-10-05) → P5 → P6 → **P4d** → **P4c** → **deploy checkpoint** (give the deploy plan, wait for
+"go") → **P3b** → **P4b**. (Revised 2026-10-05; the earlier order was P3b, P4b, P4c, P5, P6.)
 Stripe stays in test mode (no real money). The reserve dialog and the checkout result pages carry the notice
 "Demo mode: payments are simulated. Use test card 4242 4242 4242 4242." After each phase, say whether it is
 safe to deploy again. Commit and push after every finished step.
@@ -398,7 +398,20 @@ safe to deploy again. Commit and push after every finished step.
   "before Stripe processing fees".
 - Tests: refunds subtract, a deposit counts only when forfeited, backfill is idempotent, admin-only access.
 
-## Phase 4c: Cash at meetup (after P4b)
+## Phase 4d: Meetup spot and receipt confirmation (before P4c)
+
+- Listings get an optional `meetupSpot` (nullable enum: MAIN_GATE, LIBRARY, CAFETERIA, PERMANENT_CAMPUS, OTHER).
+  Add it to the create and edit forms, show it on the listing detail page, and show it on both sides of an order.
+- ONLINE orders start as PAID. The buyer sees "Confirm I received it" and "Report a problem" on the order.
+  Confirm sets COMPLETED and `completedAt`.
+- A scheduled job auto-completes PAID orders 72 hours after payment unless a problem report exists. A report
+  freezes the order (no auto-complete, no payout) and shows in an admin queue.
+- Admin payout is allowed only for COMPLETED orders.
+- Both sides see each other's phone and the meetup spot on the order; nobody else does.
+- Tests: only the buyer can confirm, no double confirm, auto-complete timing, payout blocked while PAID or
+  reported, and `meetupSpot` validation.
+
+## Phase 4c: Cash at meetup (after P4d)
 
 - The reserver chooses "Pay online" (the existing Buy flow) or "Pay cash at meetup". The cash choice shows the
   seller's phone, the meetup spot and the exact cash amount (price minus deposit).
@@ -652,9 +665,10 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P4a** Phase 4 finished: purchase/cancel/release/expiry UI · real-Stripe verification · deploy checkpoint
 - [ ] **P3b** Posting fee: PENDING_PAYMENT · POSTING_FEE · hidden until paid · stale cleanup · price-raise block · live quote
 - [ ] **P4b** Revenue ledger · /api/admin/revenue · admin revenue page (chart, CSV)
+- [ ] **P4d** meetupSpot on listings · buyer confirms receipt / reports a problem · 72h auto-complete · admin problem queue · payout only when COMPLETED
 - [ ] **P4c** Cash at meetup · paymentMethod · seller confirms handover · owed-to-seller for cash
 - [x] **P5** Caffeine caches · @Cacheable/@CacheEvict/@Caching · after-commit eviction · cache tests
-- [ ] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
+- [x] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [ ] **P7** condition+meetup · multi-photo · saved · seller profile · reports · notifications · ratings · admin KPIs
 - [ ] **P8** Showcase seed data · DEMO.md · min-instances plan · (Flyway · rate limits · headers · logging · docs)
 

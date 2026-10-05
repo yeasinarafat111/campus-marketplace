@@ -1,4 +1,4 @@
-import axios, { type InternalAxiosRequestConfig } from 'axios'
+import axios, { isAxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { getAccessToken, getRefreshToken, setAccessToken, setRefreshToken } from './tokens'
 
 const baseURL = import.meta.env.VITE_API_URL
@@ -33,8 +33,12 @@ export function refreshAccessToken(): Promise<string> {
       return res.data.accessToken
     })
     .catch((err) => {
-      setAccessToken(null)
-      setRefreshToken(null)
+      // Only a real rejection of the refresh token ends the session. A network error or a 5xx (the server is
+      // down or restarting) must not log the user out; they can try again when it is back.
+      if (isAxiosError(err) && err.response && err.response.status >= 400 && err.response.status < 500) {
+        setAccessToken(null)
+        setRefreshToken(null)
+      }
       throw err
     })
     .finally(() => {

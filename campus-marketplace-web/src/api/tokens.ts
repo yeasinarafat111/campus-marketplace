@@ -14,6 +14,17 @@ export const setAccessToken = (token: string | null) => {
   accessToken = token
 }
 
+/** Seconds until the access token expires (negative if it has), read from its payload, or null if there is none. */
+export function accessTokenSecondsLeft(): number | null {
+  if (!accessToken) return null
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof payload.exp === 'number' ? payload.exp - Date.now() / 1000 : null
+  } catch {
+    return null
+  }
+}
+
 export const getRefreshToken = () => localStorage.getItem(REFRESH_KEY)
 export const setRefreshToken = (token: string | null) => {
   if (token) localStorage.setItem(REFRESH_KEY, token)

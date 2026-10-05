@@ -2,9 +2,11 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AdminRoute from './components/AdminRoute'
 import AppLayout from './components/AppLayout'
 import ErrorBoundary from './components/ErrorBoundary'
+import MessagesPage from './pages/MessagesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
+import { ChatSocketProvider } from './context/ChatSocketProvider'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import CreateEditListingPage from './pages/CreateEditListingPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -25,6 +27,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
+          <ChatSocketProvider>
           <Routes>
             <Route path="/" element={<Navigate to="/listings" replace />} />
             <Route path="/signup" element={<SignupPage />} />
@@ -43,6 +46,8 @@ export default function App() {
                 <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
                 <Route path="/my-listings" element={<MyListingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/messages/:id" element={<MessagesPage />} />
                 <Route path="/purchases" element={<OrdersPage kind="purchases" />} />
                 <Route path="/sales" element={<OrdersPage kind="sales" />} />
                 <Route path="/payments/success" element={<PaymentSuccessPage />} />
@@ -56,6 +61,7 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
+          </ChatSocketProvider>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

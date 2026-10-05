@@ -4,6 +4,7 @@ import { type Listing } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
+import MessageSellerButton from '../components/MessageSellerButton'
 import Avatar from '../components/ui/Avatar'
 import { buttonClasses } from '../components/ui/buttonClasses'
 import ImageWithFallback from '../components/ui/ImageWithFallback'
@@ -106,6 +107,7 @@ function ListingActions({ listing, isOwner, block = false, compact = false }: { 
   return (
     <>
       <ListingPaymentActions listing={listing} block={block} compact={compact} />
+      <MessageSellerButton listing={listing} block={block} size={compact ? 'md' : 'lg'} />
       {isOwner && listing.status === 'ACTIVE' && (
         <Link to={`/listings/${listing.id}/edit`} className={buttonClasses({ variant: 'secondary', size: 'lg', className: block ? 'w-full' : '' })}>
           Edit

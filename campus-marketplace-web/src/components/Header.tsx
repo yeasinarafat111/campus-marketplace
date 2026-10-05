@@ -1,6 +1,8 @@
-import { LayoutDashboard, List, LogOut, Menu, Plus, Receipt, Search, ShoppingBag, User as UserIcon } from 'lucide-react'
+import { LayoutDashboard, List, LogOut, Menu, MessageCircle, Plus, Receipt, Search, ShoppingBag, User as UserIcon } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { chatKeys, getUnreadCount } from '../api/chat'
 import { useAuth } from '../hooks/useAuth'
 import Logo from './Logo'
 import Avatar from './ui/Avatar'
@@ -48,6 +50,22 @@ function SearchBox({ className, autoFocus = false, onDone }: { className?: strin
   )
 }
 
+/** The messages icon with the unread count. Kept live by the chat socket (see ChatSocketProvider). */
+function MessagesLink() {
+  const unread = useQuery({ queryKey: chatKeys.unread, queryFn: getUnreadCount, staleTime: 60_000 })
+  const count = unread.data?.count ?? 0
+  return (
+    <Link to="/messages" aria-label={count > 0 ? `Messages, ${count} unread` : 'Messages'} className="relative rounded-lg p-2 transition-colors hover:bg-white/10">
+      <MessageCircle className="size-5" aria-hidden />
+      {count > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-4 text-white">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
+  )
+}
+
 function UserMenu() {
   const { user, logout } = useAuth()
   if (!user) return null
@@ -69,6 +87,9 @@ function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuLink to="/my-listings" icon={<List className="size-4 text-muted" aria-hidden />}>
           My listings
+        </DropdownMenuLink>
+        <DropdownMenuLink to="/messages" icon={<MessageCircle className="size-4 text-muted" aria-hidden />}>
+          Messages
         </DropdownMenuLink>
         <DropdownMenuLink to="/purchases" icon={<ShoppingBag className="size-4 text-muted" aria-hidden />}>
           Purchases
@@ -132,6 +153,8 @@ export default function Header() {
           </Link>
         </div>
 
+        {isAuthenticated && <MessagesLink />}
+
         {isAuthenticated ? (
           <UserMenu />
         ) : (
@@ -163,6 +186,7 @@ export default function Header() {
           {isAuthenticated ? (
             <>
               <MobileLink to="/my-listings" onClick={closeNav}>My listings</MobileLink>
+              <MobileLink to="/messages" onClick={closeNav}>Messages</MobileLink>
               <MobileLink to="/purchases" onClick={closeNav}>Purchases</MobileLink>
               <MobileLink to="/sales" onClick={closeNav}>Sales</MobileLink>
               <MobileLink to="/profile" onClick={closeNav}>Profile</MobileLink>
