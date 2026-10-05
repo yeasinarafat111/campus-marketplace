@@ -1,17 +1,21 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { deleteListing, markSold, myListings } from '../api/listings'
+import { deleteListing, markSold, myListings, type ListingStatus } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
+import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
 import Pagination from '../components/Pagination'
 import { useFetch } from '../hooks/useFetch'
-import { formatCategory, formatPrice } from '../lib'
+import { formatPrice } from '../lib'
 
 export default function MyListingsPage() {
+  useDocumentTitle('My listings')
   const [params, setParams] = useSearchParams()
   const page = Number(params.get('page') ?? 0) || 0
-  const { data, error, loading, reload } = useFetch(() => myListings({ page, size: 10 }), [page])
+  const status = (params.get('status') as ListingStatus | null) ?? undefined
+  const { data, error, loading, reload } = useFetch(() => myListings({ status, page, size: 10 }), [status, page])
   const [actionError, setActionError] = useState('')
 
   async function run(action: () => Promise<unknown>) {
@@ -33,44 +37,68 @@ export default function MyListingsPage() {
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My listings</h1>
-        <Link to="/listings/new" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+      <div className="mb-6 flex items-end justify-between gap-3">
+        <h1 className="text-5xl leading-none">My listings</h1>
+        <Link to="/listings/new" className="btn btn-primary">
           New listing
         </Link>
       </div>
+      <div role="tablist" aria-label="Filter by status" className="mb-4 flex gap-5 border-b border-rule">
+        {([['', 'All'], ['ACTIVE', 'Active'], ['SOLD', 'Sold']] as const).map(([value, label]) => {
+          const selected = (status ?? '') === value
+          return (
+            <button
+              key={label}
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setParams(value ? { status: value } : {})}
+              className={`-mb-px border-b-2 py-2 text-base font-semibold ${selected ? 'border-gold text-navy' : 'border-transparent text-muted hover:text-navy'}`}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
       {(error || actionError) && <Alert kind="error">{error || actionError}</Alert>}
-      {loading && !data && <p className="text-sm text-gray-500">Loading…</p>}
-      {data && data.content.length === 0 && <p className="text-sm text-gray-500">You haven't posted anything yet.</p>}
-      <ul className="space-y-3">
+      {loading && !data && <p className="text-muted">Loading…</p>}
+      {data && data.content.length === 0 && <p className="text-muted">{status ? 'No listings with this status.' : "You haven't posted anything yet."}</p>}
+      <ul className="border-t-2 border-navy">
         {data?.content.map((l) => (
-          <li key={l.id} className="flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+          <li
+            key={l.id}
+            className={`flex flex-wrap items-center gap-4 border-b border-rule py-4 ${l.featured ? 'border-l-4 border-l-gold bg-gold/10 pl-3' : ''}`}
+          >
             {l.imageUrl ? (
-              <img src={l.imageUrl} alt="" className="h-16 w-16 rounded-md object-cover" />
+              <img src={l.imageUrl} alt="" className="h-20 w-20 border border-rule object-cover" />
             ) : (
-              <div className="h-16 w-16 rounded-md bg-gray-100" />
+              <div className="h-20 w-20 border border-dashed border-rule" />
             )}
             <div className="min-w-0 flex-1">
-              <Link to={`/listings/${l.id}`} className="font-semibold text-gray-900 hover:underline">{l.title}</Link>
-              <p className="text-sm text-gray-500">
-                {formatPrice(l.price)} · {formatCategory(l.category)} ·{' '}
-                <span className={l.status === 'SOLD' ? 'text-red-600' : 'text-green-600'}>{l.status === 'SOLD' ? 'Sold' : 'Active'}</span>
-              </p>
+              <Link to={`/listings/${l.id}`} className="text-lg font-semibold text-ink hover:underline">
+                {l.title}
+              </Link>
+              <p className="font-display text-2xl font-bold text-navy">{formatPrice(l.price)}</p>
+              <ListingBadges listing={l} />
             </div>
-            <div className="flex gap-3 text-sm">
+            <div className="flex flex-wrap items-start gap-x-4 gap-y-2 text-sm">
               <ListingPaymentActions listing={l} />
-              <Link to={`/listings/${l.id}/edit`} className="text-indigo-600 hover:underline">Edit</Link>
+              <Link to={`/listings/${l.id}/edit`} className="link py-2">
+                Edit
+              </Link>
               {l.status === 'ACTIVE' && (
-                <button onClick={() => onSold(l.id, l.title)} className="text-indigo-600 hover:underline">Mark sold</button>
+                <button onClick={() => onSold(l.id, l.title)} className="link py-2">
+                  Mark sold
+                </button>
               )}
-              <button onClick={() => onDelete(l.id, l.title)} className="text-red-600 hover:underline">Delete</button>
+              <button onClick={() => onDelete(l.id, l.title)} className="link-danger py-2">
+                Delete
+              </button>
             </div>
           </li>
         ))}
       </ul>
       {data && (
-        <Pagination page={data.page} totalPages={data.totalPages}
-          onChange={(p) => setParams(p === 0 ? {} : { page: String(p) })} />
+        <Pagination page={data.page} totalPages={data.totalPages} onChange={(p) => setParams({ ...(status ? { status } : {}), ...(p === 0 ? {} : { page: String(p) }) })} />
       )}
     </>
   )

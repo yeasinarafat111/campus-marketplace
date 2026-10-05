@@ -36,12 +36,23 @@ export interface ListingInput {
   imageUrl?: string
 }
 
-export const searchListings = (params: { keyword?: string; category?: string; page?: number; size?: number }) =>
+export interface SearchParams {
+  keyword?: string
+  category?: string
+  minPrice?: string
+  maxPrice?: string
+  sort?: 'createdAt' | 'price' | 'title'
+  direction?: 'asc' | 'desc'
+  page?: number
+  size?: number
+}
+
+export const searchListings = (params: SearchParams) =>
   client.get<Page<Listing>>('/api/listings', { params }).then((r) => r.data)
 
 export const getListing = (id: string | number) => client.get<Listing>(`/api/listings/${id}`).then((r) => r.data)
 
-export const myListings = (params: { page?: number; size?: number }) =>
+export const myListings = (params: { status?: ListingStatus; page?: number; size?: number }) =>
   client.get<Page<Listing>>('/api/listings/mine', { params }).then((r) => r.data)
 
 /** Multipart so an optional image file can be uploaded (the backend sends it to Cloudinary). */

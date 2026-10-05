@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signup } from '../api/auth'
@@ -8,6 +9,7 @@ import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
 
 export default function SignupPage() {
+  useDocumentTitle('Sign up')
   const navigate = useNavigate()
   const [form, setForm] = useState({ fullName: '', email: '', password: '' })
   const [error, setError] = useState('')
@@ -37,11 +39,11 @@ export default function SignupPage() {
   return (
     <AuthLayout
       title="Create your account"
-      subtitle="Use your campus email address."
+      subtitle="Use your seu.edu.bd email address."
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-indigo-600 hover:underline">
+          <Link to="/login" className="link">
             Log in
           </Link>
         </>
@@ -56,7 +58,7 @@ export default function SignupPage() {
         <FormField label="Password" name="password" type="password" autoComplete="new-password" required
           minLength={8} maxLength={72} value={form.password} onChange={update('password')}
           error={fieldErrors.password} />
-        <p className="text-xs text-gray-500">8–72 characters.</p>
+        <p className="text-sm text-muted">8 to 72 characters.</p>
         <SubmitButton loading={loading}>Sign up</SubmitButton>
       </form>
     </AuthLayout>

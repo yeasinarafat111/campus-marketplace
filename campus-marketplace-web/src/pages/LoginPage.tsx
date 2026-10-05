@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { parseApiError } from '../api/errors'
@@ -8,9 +9,12 @@ import SubmitButton from '../components/SubmitButton'
 import { useAuth } from '../hooks/useAuth'
 
 export default function LoginPage() {
+  useDocumentTitle('Log in')
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from
+  const destination = from ? `${from.pathname}${from.search ?? ''}` : '/listings'
   const verified = (location.state as { verified?: boolean } | null)?.verified
   const resetDone = (location.state as { reset?: boolean } | null)?.reset
   const [email, setEmail] = useState('')
@@ -18,7 +22,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  if (isAuthenticated) return <Navigate to="/listings" replace />
+  if (isAuthenticated) return <Navigate to={destination} replace />
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -26,7 +30,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email.trim(), password)
-      navigate('/listings', { replace: true })
+      navigate(destination, { replace: true })
     } catch (err) {
       setError(parseApiError(err).message)
       setLoading(false)
@@ -39,7 +43,7 @@ export default function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="font-medium text-indigo-600 hover:underline">
+          <Link to="/signup" className="link">
             Create an account
           </Link>
         </>
@@ -54,7 +58,7 @@ export default function LoginPage() {
         <FormField label="Password" name="password" type="password" autoComplete="current-password" required
           value={password} onChange={(e) => setPassword(e.target.value)} />
         <div className="text-right text-sm">
-          <Link to="/forgot-password" className="text-indigo-600 hover:underline">
+          <Link to="/forgot-password" className="link">
             Forgot password?
           </Link>
         </div>

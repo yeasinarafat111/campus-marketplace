@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { resendOtp, verifyOtp } from '../api/auth'
@@ -8,6 +9,7 @@ import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
 
 export default function VerifyOtpPage() {
+  useDocumentTitle('Verify your email')
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [email, setEmail] = useState(params.get('email') ?? '')
@@ -51,7 +53,7 @@ export default function VerifyOtpPage() {
       title="Verify your email"
       subtitle="Enter the 6-digit code we emailed you."
       footer={
-        <Link to="/login" className="font-medium text-indigo-600 hover:underline">
+        <Link to="/login" className="link">
           Back to log in
         </Link>
       }
@@ -65,7 +67,7 @@ export default function VerifyOtpPage() {
           pattern="\d{6}" maxLength={6} required value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} error={fieldErrors.code} />
         <SubmitButton loading={loading}>Verify</SubmitButton>
-        <button type="button" onClick={onResend} className="w-full text-sm text-indigo-600 hover:underline">
+        <button type="button" onClick={onResend} className="link w-full text-center text-sm">
           Resend code
         </button>
       </form>

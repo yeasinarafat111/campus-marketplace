@@ -1,7 +1,7 @@
 export default function Alert({ kind, children }: { kind: 'error' | 'success'; children: React.ReactNode }) {
-  const styles = kind === 'error' ? 'bg-red-50 text-red-700 ring-red-200' : 'bg-green-50 text-green-700 ring-green-200'
+  const styles = kind === 'error' ? 'border-danger text-danger' : 'border-sage text-sage-deep'
   return (
-    <div role={kind === 'error' ? 'alert' : 'status'} className={`rounded-md p-3 text-sm ring-1 ${styles}`}>
+    <div role={kind === 'error' ? 'alert' : 'status'} className={`border-l-4 bg-white px-3 py-2 text-sm ${styles}`}>
       {children}
     </div>
   )

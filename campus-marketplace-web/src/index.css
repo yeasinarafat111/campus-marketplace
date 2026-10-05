@@ -1,1 +1,83 @@
 @import "tailwindcss";
+
+@theme {
+  --color-navy: #1b2a4a;
+  --color-navy-deep: #131e36;
+  --color-gold: #d9a441;
+  --color-gold-deep: #c58f2e;
+  --color-gold-ink: #7a5710; /* gold-family text that stays readable on paper */
+  --color-paper: #faf8f3;
+  --color-ink: #1f2328;
+  --color-muted: #5a6270;
+  --color-sage: #3f6f69;
+  --color-sage-deep: #305a55;
+  --color-rule: #d8d2c4;
+  --color-danger: #a3302b;
+
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-sans: "Source Sans 3", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-semibold text-navy;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-navy);
+    outline-offset: 2px;
+  }
+  .on-navy :focus-visible {
+    outline-color: var(--color-gold);
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-sm border border-transparent px-4 py-2 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-sm {
+    @apply px-3 py-1 text-sm;
+  }
+  .btn-primary {
+    @apply bg-navy text-white hover:bg-navy-deep;
+  }
+  .btn-gold {
+    @apply bg-gold text-navy hover:bg-gold-deep;
+  }
+  .btn-sage {
+    @apply bg-sage text-white hover:bg-sage-deep;
+  }
+  .btn-outline {
+    @apply border-navy bg-transparent text-navy hover:bg-navy hover:text-white;
+  }
+  .link {
+    @apply text-navy underline underline-offset-2 hover:text-sage;
+  }
+  .link-danger {
+    @apply text-danger underline underline-offset-2 hover:text-ink;
+  }
+  .input {
+    @apply block w-full rounded-sm border border-rule bg-white px-3 py-2 text-base text-ink placeholder:text-muted/70;
+  }
+  .input[aria-invalid="true"] {
+    @apply border-danger;
+  }
+  .tag {
+    @apply inline-block rounded-sm border border-rule bg-white px-2 py-0.5 text-sm text-muted;
+  }
+  .tag-featured {
+    @apply border-gold bg-gold font-semibold text-navy;
+  }
+  .tag-reserved {
+    @apply border-sage text-sage;
+  }
+  .tag-sold {
+    @apply border-ink bg-ink text-white;
+  }
+}

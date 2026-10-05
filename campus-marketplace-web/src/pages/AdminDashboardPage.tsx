@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { adminDeleteListing, deactivateUser, listUsers, reactivateUser } from '../api/admin'
@@ -10,6 +11,7 @@ import { useFetch } from '../hooks/useFetch'
 import { formatPrice } from '../lib'
 
 export default function AdminDashboardPage() {
+  useDocumentTitle('Admin dashboard')
   const { user: me } = useAuth()
   const [userPage, setUserPage] = useState(0)
   const [listingPage, setListingPage] = useState(0)
@@ -28,41 +30,41 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const th = 'px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500'
+  const th = 'px-3 py-2 text-left text-sm font-semibold text-navy'
   const td = 'px-3 py-2 text-sm'
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-bold">Admin dashboard</h1>
+      <h1 className="border-b-2 border-navy pb-2 text-5xl leading-none">Admin dashboard</h1>
       {(actionError || users.error || listings.error) && (
         <Alert kind="error">{actionError || users.error || listings.error}</Alert>
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Users</h2>
-        <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
+        <h2 className="mb-3 text-3xl">Users</h2>
+        <div className="overflow-x-auto border-y border-rule bg-white">
+          <table className="min-w-full divide-y divide-rule">
             <thead>
               <tr><th className={th}>Name</th><th className={th}>Email</th><th className={th}>Role</th><th className={th}>Status</th><th className={th}></th></tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-rule">
               {users.data?.content.map((u) => (
                 <tr key={u.id}>
                   <td className={td}>{u.fullName}</td>
                   <td className={td}>{u.email}</td>
                   <td className={td}>{u.role}</td>
                   <td className={td}>
-                    {!u.active ? <span className="text-red-600">Deactivated</span> : !u.enabled ? <span className="text-amber-600">Unverified</span> : 'Active'}
+                    {!u.active ? <span className="font-semibold text-danger">Deactivated</span> : !u.enabled ? <span className="font-semibold text-gold-ink">Unverified</span> : 'Active'}
                   </td>
                   <td className={`${td} text-right`}>
                     {u.id !== me?.id &&
                       (u.active ? (
-                        <button className="text-red-600 hover:underline"
+                        <button className="link-danger py-1"
                           onClick={() => window.confirm(`Deactivate ${u.email}?`) && run(() => deactivateUser(u.id), users.reload)}>
                           Deactivate
                         </button>
                       ) : (
-                        <button className="text-indigo-600 hover:underline" onClick={() => run(() => reactivateUser(u.id), users.reload)}>
+                        <button className="link py-1" onClick={() => run(() => reactivateUser(u.id), users.reload)}>
                           Reactivate
                         </button>
                       ))}
@@ -76,20 +78,20 @@ export default function AdminDashboardPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Listings</h2>
-        <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
+        <h2 className="mb-3 text-3xl">Listings</h2>
+        <div className="overflow-x-auto border-y border-rule bg-white">
+          <table className="min-w-full divide-y divide-rule">
             <thead>
               <tr><th className={th}>Title</th><th className={th}>Price</th><th className={th}>Seller</th><th className={th}></th></tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-rule">
               {listings.data?.content.map((l) => (
                 <tr key={l.id}>
-                  <td className={td}><Link to={`/listings/${l.id}`} className="hover:underline">{l.title}</Link></td>
+                  <td className={td}><Link to={`/listings/${l.id}`} className="link">{l.title}</Link></td>
                   <td className={td}>{formatPrice(l.price)}</td>
                   <td className={td}>{l.owner.fullName}</td>
                   <td className={`${td} text-right`}>
-                    <button className="text-red-600 hover:underline"
+                    <button className="link-danger py-1"
                       onClick={() => window.confirm(`Delete "${l.title}"?`) && run(() => adminDeleteListing(l.id), listings.reload)}>
                       Delete
                     </button>

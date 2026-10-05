@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CATEGORIES, createListing, getListing, updateListing, type Category, type ListingInput } from '../api/listings'
@@ -14,6 +15,7 @@ const empty: ListingInput = { title: '', description: '', price: '', category: '
 export default function CreateEditListingPage() {
   const { id } = useParams()
   const isEdit = id !== undefined
+  useDocumentTitle(isEdit ? 'Edit listing' : 'Sell something')
   const navigate = useNavigate()
   const [form, setForm] = useState<ListingInput>(empty)
   const [image, setImage] = useState<File | null>(null)
@@ -80,28 +82,28 @@ export default function CreateEditListingPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-gray-500">Loading…</p>
+  if (loading) return <p className="text-muted">Loading…</p>
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-bold">{isEdit ? 'Edit listing' : 'Sell something'}</h1>
-      <form onSubmit={onSubmit} className="space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200" noValidate>
+      <h1 className="mb-6 border-b-2 border-navy pb-2 text-5xl leading-none">{isEdit ? 'Edit listing' : 'Sell something'}</h1>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {error && <Alert kind="error">{error}</Alert>}
         <FormField label="Title" name="title" required maxLength={120} value={form.title}
           onChange={set('title')} error={fieldErrors.title} />
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+          <label htmlFor="description" className="block text-sm font-semibold text-navy">Description</label>
           <textarea id="description" rows={4} maxLength={2000} value={form.description} onChange={set('description')}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm" />
-          {fieldErrors.description && <p className="mt-1 text-xs text-red-600">{fieldErrors.description}</p>}
+            className="input mt-1" />
+          {fieldErrors.description && <p className="mt-1 text-sm text-danger">{fieldErrors.description}</p>}
         </div>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Price (USD)" name="price" type="number" min="0" step="0.01" required
             value={form.price} onChange={set('price')} error={fieldErrors.price} />
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">Category</label>
+            <label htmlFor="category" className="block text-sm font-semibold text-navy">Category</label>
             <select id="category" value={form.category} onChange={set('category')}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm">
+              className="input mt-1">
               {CATEGORIES.map((c: Category) => (
                 <option key={c} value={c}>{formatCategory(c)}</option>
               ))}
@@ -113,10 +115,10 @@ export default function CreateEditListingPage() {
             onChange={set('imageUrl')} error={fieldErrors.imageUrl} />
         ) : (
           <div>
-            <label htmlFor="image" className="block text-sm font-medium text-gray-700">Image (optional, max 5 MB)</label>
+            <label htmlFor="image" className="block text-sm font-semibold text-navy">Image (optional, max 5 MB)</label>
             <input id="image" type="file" accept="image/*" onChange={onImage}
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-indigo-700" />
-            {preview && <img src={preview} alt="Preview" className="mt-3 h-40 rounded-md object-cover" />}
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-sm file:border file:border-navy file:bg-transparent file:px-3 file:py-2 file:font-semibold file:text-navy" />
+            {preview && <img src={preview} alt="Preview" className="mt-3 h-40 border border-rule object-cover" />}
           </div>
         )}
         <SubmitButton loading={saving}>{isEdit ? 'Save changes' : 'Create listing'}</SubmitButton>

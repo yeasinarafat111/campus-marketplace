@@ -1,27 +1,32 @@
 import { Link } from 'react-router-dom'
 import type { Listing } from '../api/listings'
-import { formatCategory, formatPrice } from '../lib'
+import { formatPrice } from '../lib'
+import ListingBadges from './ListingBadges'
 
+/** One cell of the listings board. Cells are separated by rules (the grid supplies the outer border). */
 export default function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       to={`/listings/${listing.id}`}
-      className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition hover:shadow-md"
+      className={`group flex flex-col border-b border-r border-rule p-4 hover:bg-white ${
+        listing.featured ? 'border-t-4 border-t-gold bg-gold/10' : ''
+      }`}
     >
       {listing.imageUrl ? (
-        <img src={listing.imageUrl} alt="" className="h-44 w-full object-cover" loading="lazy" />
+        <img src={listing.imageUrl} alt="" className="aspect-[4/3] w-full border border-rule object-cover" loading="lazy" />
       ) : (
-        <div className="flex h-44 items-center justify-center bg-gray-100 text-sm text-gray-400">No image</div>
-      )}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 font-semibold text-gray-900">{listing.title}</h3>
-          <span className="shrink-0 font-semibold text-indigo-600">{formatPrice(listing.price)}</span>
+        <div className="flex aspect-[4/3] w-full items-center justify-center border border-dashed border-rule text-sm text-muted">
+          No photo
         </div>
-        <p className="mt-1 text-xs text-gray-500">
-          {formatCategory(listing.category)} · {listing.owner.fullName}
-        </p>
+      )}
+      <p className="mt-3 font-display text-3xl font-bold leading-none text-navy">{formatPrice(listing.price)}</p>
+      <h3 className="mt-1 line-clamp-2 font-sans text-base font-semibold text-ink group-hover:underline">
+        {listing.title}
+      </h3>
+      <div className="mt-2">
+        <ListingBadges listing={listing} />
       </div>
+      <p className="mt-auto pt-3 text-sm text-muted">Sold by {listing.owner.fullName}</p>
     </Link>
   )
 }

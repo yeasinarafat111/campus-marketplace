@@ -1,6 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AdminRoute from './components/AdminRoute'
 import AppLayout from './components/AppLayout'
+import ErrorBoundary from './components/ErrorBoundary'
+import NotFoundPage from './pages/NotFoundPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
 import AdminDashboardPage from './pages/AdminDashboardPage'
@@ -18,36 +20,39 @@ import VerifyOtpPage from './pages/VerifyOtpPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/listings" replace />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify-otp" element={<VerifyOtpPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          <Route element={<AppLayout />}>
-            {/* Browsing is public on the backend. */}
-            <Route path="/listings" element={<ListingsPage />} />
-            <Route path="/listings/:id" element={<ListingDetailPage />} />
+            <Route element={<AppLayout />}>
+              {/* Browsing is public on the backend. */}
+              <Route path="/listings" element={<ListingsPage />} />
+              <Route path="/listings/:id" element={<ListingDetailPage />} />
 
-            <Route element={<ProtectedRoute />}>
-              <Route path="/listings/new" element={<CreateEditListingPage />} />
-              <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
-              <Route path="/my-listings" element={<MyListingsPage />} />
-              <Route path="/payments/success" element={<PaymentSuccessPage />} />
-              <Route path="/payments/cancel" element={<PaymentCancelPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/listings/new" element={<CreateEditListingPage />} />
+                <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
+                <Route path="/my-listings" element={<MyListingsPage />} />
+                <Route path="/payments/success" element={<PaymentSuccessPage />} />
+                <Route path="/payments/cancel" element={<PaymentCancelPage />} />
+              </Route>
+
+              <Route element={<AdminRoute />}>
+                <Route path="/admin" element={<AdminDashboardPage />} />
+              </Route>
+
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
-
-            <Route element={<AdminRoute />}>
-              <Route path="/admin" element={<AdminDashboardPage />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/listings" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

@@ -5,6 +5,7 @@ import { parseApiError } from '../api/errors'
 export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
+  const [errorStatus, setErrorStatus] = useState<number | undefined>()
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
 
@@ -12,9 +13,15 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[]) {
     let cancelled = false
     setLoading(true)
     setError('')
+    setErrorStatus(undefined)
     fetcher()
       .then((d) => !cancelled && setData(d))
-      .catch((e) => !cancelled && setError(parseApiError(e).message))
+      .catch((e) => {
+        if (cancelled) return
+        const parsed = parseApiError(e)
+        setError(parsed.message)
+        setErrorStatus(parsed.status)
+      })
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
@@ -23,5 +30,5 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[]) {
   }, [...deps, tick])
 
   const reload = useCallback(() => setTick((t) => t + 1), [])
-  return { data, error, loading, reload }
+  return { data, error, errorStatus, loading, reload }
 }

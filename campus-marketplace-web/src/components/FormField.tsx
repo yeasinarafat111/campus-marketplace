@@ -9,20 +9,11 @@ export default function FormField({ label, error, id, ...props }: FormFieldProps
   const inputId = id ?? props.name
   return (
     <div>
-      <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+      <label htmlFor={inputId} className="block text-sm font-semibold text-navy">
         {label}
       </label>
-      <input
-        id={inputId}
-        aria-invalid={error ? true : undefined}
-        className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 ${
-          error
-            ? 'border-red-400 focus:ring-red-300'
-            : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
-        }`}
-        {...props}
-      />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      <input id={inputId} aria-invalid={error ? true : undefined} className="input mt-1" {...props} />
+      {error && <p className="mt-1 text-sm text-danger">{error}</p>}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { forgotPassword } from '../api/auth'
@@ -8,6 +9,7 @@ import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
 
 export default function ForgotPasswordPage() {
+  useDocumentTitle('Forgot password')
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [email, setEmail] = useState(params.get('email') ?? '')
@@ -33,7 +35,7 @@ export default function ForgotPasswordPage() {
       title="Forgot password"
       subtitle="We'll email you a code to reset your password."
       footer={
-        <Link to="/login" className="font-medium text-indigo-600 hover:underline">
+        <Link to="/login" className="link">
           Back to log in
         </Link>
       }

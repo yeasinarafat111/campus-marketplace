@@ -1,51 +1,73 @@
 import { Link, useParams } from 'react-router-dom'
 import { getListing } from '../api/listings'
-import Alert from '../components/Alert'
+import StatePanel from '../components/StatePanel'
+import NotFoundPage from './NotFoundPage'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
 import { useAuth } from '../hooks/useAuth'
 import { useFetch } from '../hooks/useFetch'
-import { formatCategory, formatPrice } from '../lib'
+import { formatPrice } from '../lib'
 
 export default function ListingDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { data: listing, error, loading } = useFetch(() => getListing(id!), [id])
+  const { data: listing, error, errorStatus, loading } = useFetch(() => getListing(id!), [id])
 
-  if (loading) return <p className="text-sm text-gray-500">Loading…</p>
-  if (error) return <Alert kind="error">{error}</Alert>
+  useDocumentTitle(listing?.title ?? 'Listing')
+
+  if (loading) return <p className="text-muted">Loading…</p>
+  if (errorStatus === 404) return <NotFoundPage what="listing" />
+  if (error) {
+    return (
+      <StatePanel title="This listing couldn't be loaded" actions={<Link to="/listings" className="btn btn-primary">Back to the board</Link>}>
+        {error}
+      </StatePanel>
+    )
+  }
   if (!listing) return null
 
   const isOwner = user?.id === listing.owner.id
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      {listing.imageUrl ? (
-        <img src={listing.imageUrl} alt={listing.title} className="w-full rounded-xl object-cover ring-1 ring-gray-200" />
-      ) : (
-        <div className="flex h-72 items-center justify-center rounded-xl bg-gray-100 text-gray-400">No image</div>
-      )}
-      <div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{formatCategory(listing.category)}</span>
-          {listing.status === 'SOLD' && <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-700">Sold</span>}
-          {listing.reserved && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">Reserved</span>}
-          {listing.featured && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700">Featured</span>}
-        </div>
-        <h1 className="mt-3 text-3xl font-bold text-gray-900">{listing.title}</h1>
-        <p className="mt-2 text-2xl font-semibold text-indigo-600">{formatPrice(listing.price)}</p>
-        {listing.description && <p className="mt-4 whitespace-pre-line text-gray-700">{listing.description}</p>}
-        <p className="mt-6 text-sm text-gray-500">
-          Sold by {listing.owner.fullName} · listed {new Date(listing.createdAt).toLocaleDateString()}
-        </p>
-        <ListingPaymentActions listing={listing} />
-        {isOwner && (
-          <Link
-            to={`/listings/${listing.id}/edit`}
-            className="mt-6 inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          >
-            Edit listing
-          </Link>
+    <div>
+      <Link to="/listings" className="link text-sm">
+        Back to the board
+      </Link>
+      <div className={`mt-4 grid gap-8 md:grid-cols-2 ${listing.featured ? 'border-t-4 border-gold pt-6' : 'border-t-2 border-navy pt-6'}`}>
+        {listing.imageUrl ? (
+          <img src={listing.imageUrl} alt={listing.title} className="w-full border border-rule object-cover" />
+        ) : (
+          <div className="flex h-72 items-center justify-center border border-dashed border-rule text-muted">No photo</div>
         )}
+        <div>
+          <ListingBadges listing={listing} />
+          <h1 className="mt-3 text-4xl leading-tight sm:text-5xl">{listing.title}</h1>
+          <p className="mt-2 font-display text-5xl font-bold text-navy">{formatPrice(listing.price)}</p>
+
+          {listing.description && (
+            <p className="mt-5 whitespace-pre-line border-t border-rule pt-5 text-lg leading-relaxed">{listing.description}</p>
+          )}
+
+          <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 border-t border-rule pt-5 text-sm">
+            <dt className="text-muted">Seller</dt>
+            <dd className="font-semibold">{listing.owner.fullName}</dd>
+            <dt className="text-muted">Listed</dt>
+            <dd>{new Date(listing.createdAt).toLocaleDateString()}</dd>
+          </dl>
+
+          <div className="mt-6 flex flex-wrap items-start gap-3 border-t border-rule pt-5">
+            <ListingPaymentActions listing={listing} />
+            {isOwner && (
+              <Link to={`/listings/${listing.id}/edit`} className="btn btn-outline">
+                Edit listing
+              </Link>
+            )}
+          </div>
+          {listing.status === 'ACTIVE' && listing.reserved && !isOwner && (
+            <p className="mt-3 text-sm text-muted">Another student has already paid a deposit to hold this item.</p>
+          )}
+        </div>
       </div>
     </div>
   )

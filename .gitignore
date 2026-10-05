@@ -11,3 +11,7 @@ campus-marketplace-web/.env
 
 # General
 .DS_Store
+
+# Local tooling, not part of the project
+y/
+.firebase/
