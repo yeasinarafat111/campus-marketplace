@@ -1,6 +1,8 @@
 package com.campus.marketplace.controller;
 
+import com.campus.marketplace.dto.AdminKpiResponse;
 import com.campus.marketplace.dto.AdminOrderResponse;
+import com.campus.marketplace.service.AdminKpiService;
 import com.campus.marketplace.dto.AdminReportResponse;
 import com.campus.marketplace.dto.ResolveReportRequest;
 import com.campus.marketplace.entity.ReportStatus;
@@ -31,6 +33,13 @@ public class AdminController {
     private final AdminService adminService;
     private final OrderService orderService;
     private final ReportService reportService;
+    private final AdminKpiService kpiService;
+
+    /** Headline numbers for the dashboard tiles. (Not /stats: a security test registers that path.) */
+    @GetMapping("/kpis")
+    public AdminKpiResponse kpis() {
+        return kpiService.kpis();
+    }
 
     @GetMapping("/users")
     public PageResponse<AdminUserResponse> listUsers(@RequestParam(defaultValue = "0") int page,

@@ -47,6 +47,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
               and o.status <> com.campus.marketplace.entity.OrderStatus.CANCELLED""")
     long sumOwedToSellers();
 
+    long countByProblemReportedAtIsNotNullAndStatus(OrderStatus status);
+
     /** Orders with an open problem report, oldest report first: the admin queue. */
     @EntityGraph(attributePaths = {"buyer", "seller"})
     Page<Order> findByProblemReportedAtIsNotNullAndStatus(OrderStatus status, Pageable pageable);

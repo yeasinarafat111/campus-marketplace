@@ -83,3 +83,17 @@ export const listReports = (params: { status?: 'OPEN' | 'RESOLVED'; page?: numbe
 
 export const resolveReport = (id: number, action: ReportAction) =>
   client.post<AdminReport>(`/api/admin/reports/${id}/resolve`, { action }).then((r) => r.data)
+
+export interface AdminKpis {
+  users: number
+  activeListings: number
+  orders: number
+  netRevenueThisWeekCents: number
+  currency: string
+  /** Monday of this week (ISO date). */
+  weekFrom: string
+  openReports: number
+  openOrderProblems: number
+}
+
+export const getKpis = () => client.get<AdminKpis>('/api/admin/kpis').then((r) => r.data)

@@ -7,6 +7,10 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    /** Accounts that can log in: email verified and not deactivated. */
+    long countByEnabledTrueAndActiveTrue();
+
+
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);

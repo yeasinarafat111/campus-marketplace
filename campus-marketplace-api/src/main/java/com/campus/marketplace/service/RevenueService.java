@@ -66,6 +66,12 @@ public class RevenueService {
     @Value("${app.reporting.zone:Asia/Dhaka}")
     private String zoneId;
 
+    /** Monday of the current campus week up to today, per day. */
+    public RevenueReport thisWeek() {
+        LocalDate today = LocalDate.now(ZoneId.of(zoneId));
+        return report(today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)), today, GroupBy.DAY);
+    }
+
     /** Totals per source, net revenue, a zero-filled series, and what is owed to sellers right now. */
     @Transactional(readOnly = true)
     public RevenueReport report(LocalDate from, LocalDate to, GroupBy groupBy) {

@@ -45,6 +45,8 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
     @Query("select l from Listing l where l.id = :id")
     Optional<Listing> findForUpdateById(@Param("id") Long id);
 
+    long countByStatus(com.campus.marketplace.entity.ListingStatus status);
+
     long countByOwnerIdAndStatus(Long ownerId, com.campus.marketplace.entity.ListingStatus status);
 
     @EntityGraph(attributePaths = "owner")

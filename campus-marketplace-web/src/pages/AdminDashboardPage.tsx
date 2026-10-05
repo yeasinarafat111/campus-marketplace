@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { REPORT_REASON_LABELS, adminDeleteListing, deactivateUser, listOrders, listReports, listUsers, markPaidOut, reactivateUser, resolveProblem, resolveReport, type AdminOrder, type AdminReport, type AdminUser, type ReportAction } from '../api/admin'
+import { REPORT_REASON_LABELS, adminDeleteListing, deactivateUser, getKpis, listOrders, listReports, listUsers, markPaidOut, reactivateUser, resolveProblem, resolveReport, type AdminOrder, type AdminReport, type AdminUser, type ReportAction } from '../api/admin'
 import { parseApiError } from '../api/errors'
 import { searchListings, type Listing } from '../api/listings'
 import Alert from '../components/Alert'
@@ -77,6 +77,7 @@ export default function AdminDashboardPage() {
     onError,
   })
 
+  const kpis = useQuery({ queryKey: ['admin', 'kpis'], queryFn: getKpis, staleTime: 30_000 })
   const reports = useQuery({ queryKey: ['admin', 'reports'], queryFn: () => listReports({ status: 'OPEN', size: 20 }) })
   const closeReport = useMutation({
     mutationFn: ({ report, action }: { report: AdminReport; action: ReportAction }) => resolveReport(report.id, action),
@@ -97,6 +98,18 @@ export default function AdminDashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight text-navy">Admin dashboard</h1>
         <Link to="/admin/revenue" className="text-sm font-semibold text-navy underline-offset-2 hover:underline">Revenue report</Link>
       </div>
+      <section aria-label="Key numbers">
+        <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <Tile label="Users" value={kpis.data?.users} />
+          <Tile label="Active listings" value={kpis.data?.activeListings} />
+          <Tile label="Orders" value={kpis.data?.orders} />
+          <Tile label="Net revenue this week" value={kpis.data && formatCents(kpis.data.netRevenueThisWeekCents)} to="/admin/revenue" hint="Open the revenue report" />
+          <Tile label="Open reports" value={kpis.data?.openReports} alert={(kpis.data?.openReports ?? 0) > 0} />
+          <Tile label="Open order problems" value={kpis.data?.openOrderProblems} alert={(kpis.data?.openOrderProblems ?? 0) > 0} />
+        </dl>
+        {kpis.error && <p className="mt-2 text-sm text-danger">Couldn't load the key numbers.</p>}
+      </section>
+
       {(users.error || listings.error) && <Alert kind="error">{parseApiError(users.error ?? listings.error).message}</Alert>}
 
       <section aria-labelledby="reports-heading">
@@ -283,4 +296,19 @@ function confirmText(p: Pending | null) {
       : `${p.report.reportedUser?.fullName ?? 'This seller'} will be logged out and their listings hidden. Their other open reports are closed.`
   }
   return `${p.user.email} will be logged out and their listings hidden.`
+}
+
+function Tile({ label, value, to, hint, alert }: { label: string; value: string | number | undefined; to?: string; hint?: string; alert?: boolean }) {
+  const body = (
+    <>
+      <dt className="text-xs font-medium text-muted">{label}</dt>
+      <dd className={`mt-1 text-2xl font-bold tabular-nums ${alert ? 'text-danger' : 'text-navy'}`}>{value === undefined ? '…' : value}</dd>
+    </>
+  )
+  const box = 'block rounded-xl border border-line bg-white p-4'
+  return to ? (
+    <Link to={to} aria-label={`${label}: ${value ?? 'loading'}. ${hint ?? ''}`} className={`${box} transition-colors hover:border-navy`}>{body}</Link>
+  ) : (
+    <div className={box}>{body}</div>
+  )
 }
