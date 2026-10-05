@@ -40,6 +40,13 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
+    /**
+     * Mobile number in E.164 form (+8801XXXXXXXXX). Nullable because accounts created before phone numbers
+     * were collected have none. Never include it in a public DTO.
+     */
+    @Column(unique = true, length = 20)
+    private String phone;
+
     @Column(nullable = false)
     private String password;
 

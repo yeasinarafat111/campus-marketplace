@@ -62,7 +62,7 @@ class AuthControllerTest {
     @Test
     void signup_storesSignupOtp_andEmailsTheSameCode() throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Olga","email":"olga@seu.edu.bd","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Olga","email":"olga@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isCreated());
 
         User user = userRepository.findByEmail("olga@seu.edu.bd").orElseThrow();
@@ -78,7 +78,7 @@ class AuthControllerTest {
         doThrow(new EmailDeliveryException("smtp down", null)).when(mailService).sendOtpEmail(anyString(), anyString());
 
         postJson("/api/auth/signup", """
-                {"fullName":"Pat","email":"pat@seu.edu.bd","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Pat","email":"pat@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.message").value("Could not send email right now. Please try again later."));
 
@@ -91,7 +91,7 @@ class AuthControllerTest {
         saveUser("dup@seu.edu.bd", false);
 
         postJson("/api/auth/signup", """
-                {"fullName":"Dup","email":"dup@seu.edu.bd","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Dup","email":"dup@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isConflict());
 
         verify(mailService, never()).sendOtpEmail(any(), any());
@@ -100,7 +100,7 @@ class AuthControllerTest {
     @Test
     void signup_createsDisabledStudentWithHashedPassword_andReturnsNoTokens() throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Alice Smith","email":"  Alice@SEU.edu.bd ","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Alice Smith","email":"  Alice@SEU.edu.bd ","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.email").value("alice@seu.edu.bd"))
@@ -119,7 +119,7 @@ class AuthControllerTest {
     @Test
     void signup_ignoresClientSuppliedRoleAndEnabled() throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Mallory","email":"mallory@seu.edu.bd","password":"%s","role":"ADMIN","enabled":true}"""
+                {"fullName":"Mallory","email":"mallory@seu.edu.bd","phone":"01712345678","password":"%s","role":"ADMIN","enabled":true}"""
                 .formatted(PASSWORD))
                 .andExpect(status().isCreated());
 
@@ -133,9 +133,61 @@ class AuthControllerTest {
         saveUser("bob@seu.edu.bd", true);
 
         postJson("/api/auth/signup", """
-                {"fullName":"Bob","email":"BOB@seu.edu.bd","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Bob","email":"BOB@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Email is already registered"));
+    }
+
+    @Test
+    void signup_storesPhoneInE164_whateverFormatWasSent() throws Exception {
+        postJson("/api/auth/signup", """
+                {"fullName":"Pia","email":"pia@seu.edu.bd","phone":"017-1234 5678","password":"%s"}""".formatted(PASSWORD))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.phone").doesNotExist());
+
+        assertThat(userRepository.findByEmail("pia@seu.edu.bd").orElseThrow().getPhone()).isEqualTo("+8801712345678");
+    }
+
+    @Test
+    void signup_phoneIsRequired() throws Exception {
+        for (String body : new String[] {
+                """
+                {"fullName":"Pia","email":"pia@seu.edu.bd","password":"%s"}""",
+                """
+                {"fullName":"Pia","email":"pia@seu.edu.bd","phone":"  ","password":"%s"}"""}) {
+            postJson("/api/auth/signup", body.formatted(PASSWORD))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors.phone").value("Phone number is required"));
+        }
+        assertThat(userRepository.count()).isZero();
+    }
+
+    @Test
+    void signup_invalidPhone_returns400() throws Exception {
+        for (String phone : new String[] {"12345", "01212345678", "+911712345678", "abc"}) {
+            postJson("/api/auth/signup", """
+                    {"fullName":"Pia","email":"pia@seu.edu.bd","phone":"%s","password":"%s"}""".formatted(phone, PASSWORD))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors.phone")
+                            .value("Phone number must be a valid Bangladeshi mobile number, like 01XXXXXXXXX"));
+        }
+        assertThat(userRepository.count()).isZero();
+    }
+
+    @Test
+    void signup_duplicatePhone_returns409_inAnyFormat_andDoesNotSendEmail() throws Exception {
+        userRepository.save(User.builder().fullName("Existing").email("existing@seu.edu.bd")
+                .phone("+8801712345678").password("x").enabled(true).build());
+
+        for (String phone : new String[] {"01712345678", "8801712345678", "+8801712345678", "017 1234-5678"}) {
+            postJson("/api/auth/signup", """
+                    {"fullName":"Pia","email":"pia@seu.edu.bd","phone":"%s","password":"%s"}""".formatted(phone, PASSWORD))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("Phone number is already registered"));
+        }
+
+        verify(mailService, never()).sendOtpEmail(any(), any());
+        assertThat(userRepository.findByEmail("pia@seu.edu.bd")).isEmpty();
     }
 
     @Test
@@ -160,7 +212,7 @@ class AuthControllerTest {
                 "alice@notseu.edu.bd",           // different domain sharing the suffix
                 "alice@seu.edu"}) {
             postJson("/api/auth/signup", """
-                    {"fullName":"Alice","email":"%s","password":"%s"}""".formatted(email, PASSWORD))
+                    {"fullName":"Alice","email":"%s","phone":"01712345678","password":"%s"}""".formatted(email, PASSWORD))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.fieldErrors.email").value("Only @seu.edu.bd email addresses can register"));
         }
@@ -171,7 +223,7 @@ class AuthControllerTest {
     void signup_malformedEmail_reportsFormatErrorNotDomainError() throws Exception {
         for (String email : new String[] {"not-an-email", "alice@", "@seu.edu.bd", "a@b@seu.edu.bd", "al ice@gmail.com"}) {
             postJson("/api/auth/signup", """
-                    {"fullName":"Alice","email":"%s","password":"%s"}""".formatted(email, PASSWORD))
+                    {"fullName":"Alice","email":"%s","phone":"01712345678","password":"%s"}""".formatted(email, PASSWORD))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.fieldErrors.email").value("Email must be a valid email address"));
         }
@@ -180,7 +232,7 @@ class AuthControllerTest {
     @Test
     void signup_passwordLongerThan72_returns400() throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Long","email":"long@seu.edu.bd","password":"%s"}""".formatted("a".repeat(73)))
+                {"fullName":"Long","email":"long@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted("a".repeat(73)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.password").exists());
     }
@@ -319,7 +371,7 @@ class AuthControllerTest {
     @Test
     void login_signupThenLogin_isRejectedUntilVerified() throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Carol","email":"carol@seu.edu.bd","password":"%s"}""".formatted(PASSWORD))
+                {"fullName":"Carol","email":"carol@seu.edu.bd","phone":"01712345678","password":"%s"}""".formatted(PASSWORD))
                 .andExpect(status().isCreated());
 
         login("carol@seu.edu.bd", PASSWORD)
@@ -596,7 +648,7 @@ class AuthControllerTest {
 
     private String signupAndGetCode(String email) throws Exception {
         postJson("/api/auth/signup", """
-                {"fullName":"Test","email":"%s","password":"%s"}""".formatted(email, PASSWORD))
+                {"fullName":"Test","email":"%s","phone":"01712345678","password":"%s"}""".formatted(email, PASSWORD))
                 .andExpect(status().isCreated());
         User user = userRepository.findByEmail(email).orElseThrow();
         return otpTokenRepository.findTopByUserAndPurposeAndUsedFalseOrderByExpiresAtDesc(user, OtpPurpose.SIGNUP)

@@ -66,10 +66,15 @@ public class AuthService {
             throw new ConflictException("Email is already registered");
         }
 
+        if (userRepository.existsByPhone(request.phone())) {
+            throw new ConflictException("Phone number is already registered");
+        }
+
         // Flush now so a concurrent duplicate signup fails here, before any email is sent.
         User user = userRepository.saveAndFlush(User.builder()
                 .fullName(request.fullName())
                 .email(email)
+                .phone(request.phone())
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.STUDENT)
                 .enabled(false)

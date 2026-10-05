@@ -35,6 +35,6 @@ class AllowedEmailDomainConfigTest {
 
     private org.springframework.test.web.servlet.ResultActions signup(String email) throws Exception {
         return mockMvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content("""
-                {"fullName":"Someone","email":"%s","password":"correct-horse"}""".formatted(email)));
+                {"fullName":"Someone","email":"%s","phone":"01712345678","password":"correct-horse"}""".formatted(email)));
     }
 }
