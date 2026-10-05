@@ -76,6 +76,11 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
     @Query("select l from Listing l where l.reservedBy is not null and l.reservationExpiresAt < :now")
     List<Listing> findExpiredReservationsForUpdate(@Param("now") Instant now);
 
+    /** Held items whose reservation ends within the window, for the "expiring soon" reminder. */
+    @EntityGraph(attributePaths = "reservedBy")
+    @Query("select l from Listing l where l.reservedBy is not null and l.reservationExpiresAt >= :from and l.reservationExpiresAt < :to")
+    List<Listing> findReservationsExpiringBetween(@Param("from") Instant from, @Param("to") Instant to);
+
     /**
      * Reservations made before expiry existed have no end time. Give them one full window from now rather
      * than expiring them at once, since those buyers paid for an open-ended hold.

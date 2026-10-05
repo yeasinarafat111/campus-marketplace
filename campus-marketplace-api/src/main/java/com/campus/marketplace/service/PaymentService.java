@@ -7,6 +7,7 @@ import com.campus.marketplace.dto.CheckoutSessionResponse;
 import com.campus.marketplace.dto.FeeQuote;
 import com.campus.marketplace.dto.PostingFeeQuote;
 import com.campus.marketplace.entity.Listing;
+import com.campus.marketplace.entity.NotificationType;
 import com.campus.marketplace.entity.Order;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.entity.Payment;
@@ -59,6 +60,7 @@ public class PaymentService {
     private final PostingFeePolicy postingFeePolicy;
     private final LedgerService ledgerService;
     private final ReservationReleaseService releaseService;
+    private final NotificationService notificationService;
 
     /**
      * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
@@ -371,6 +373,10 @@ public class PaymentService {
         listing.setReservationExpiresAt(now.plus(paymentProperties.reservationDuration()));
         log.info("Listing {} reserved by user {} until {} (payment {})", listing.getId(), buyer.getId(),
                 listing.getReservationExpiresAt(), payment.getId());
+        notificationService.notify(listing.getOwner().getId(), NotificationType.RESERVED,
+                "Your item was reserved",
+                buyer.getFullName() + " reserved \"" + listing.getTitle() + "\" with a deposit. Get in touch to arrange the meetup.",
+                "/listings/" + listing.getId());
         events.publishEvent(new TradeEvents.ReservationConfirmed(
                 listing.getId(), listing.getTitle(), FeeCalculator.toCents(listing.getPrice()), payment.getAmount(),
                 payment.getCurrency(), party(listing.getOwner()), party(buyer), listing.getReservationExpiresAt()));
@@ -415,6 +421,10 @@ public class PaymentService {
                 .payment(payment)
                 .build());
         log.info("Listing {} sold to user {} (payment {})", listing.getId(), buyer.getId(), payment.getId());
+        notificationService.notify(listing.getOwner().getId(), NotificationType.PURCHASED,
+                "Your item was bought",
+                buyer.getFullName() + " bought \"" + listing.getTitle() + "\". Arrange the handover on campus.",
+                "/sales");
         events.publishEvent(new TradeEvents.PurchaseCompleted(
                 listing.getId(), listing.getTitle(), priceCents, deposit, payment.getAmount(), payment.getCurrency(),
                 party(listing.getOwner()), party(buyer)));

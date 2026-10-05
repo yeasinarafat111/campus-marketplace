@@ -1,7 +1,9 @@
 import type { Client } from '@stomp/stompjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { refreshAccessToken } from '../api/client'
+import { notificationKeys, type NotificationPush } from '../api/notifications'
 import { chatKeys, type ChatMessage, type MessagePage } from '../api/chat'
 import { accessTokenSecondsLeft, getAccessToken } from '../api/tokens'
 import { useAuth } from '../hooks/useAuth'
@@ -84,8 +86,18 @@ export function ChatSocketProvider({ children }: { children: ReactNode }) {
             )
           })
 
+          created.subscribe('/user/queue/notifications', (frame) => {
+            const push: NotificationPush = JSON.parse(frame.body)
+            queryClient.setQueryData(notificationKeys.unread, { count: push.unread })
+            if (push.notification) {
+              queryClient.invalidateQueries({ queryKey: notificationKeys.list })
+              toast(push.notification.title, { description: push.notification.body ?? undefined })
+            }
+          })
+
           // Catch up on anything missed while disconnected (and on the first connect, harmlessly).
           queryClient.invalidateQueries({ queryKey: ['chat'] })
+          queryClient.invalidateQueries({ queryKey: notificationKeys.all })
         },
         onWebSocketClose: () => {
           attempts.current += 1

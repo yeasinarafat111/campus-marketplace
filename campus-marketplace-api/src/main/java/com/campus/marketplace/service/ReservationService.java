@@ -6,6 +6,7 @@ import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
+import com.campus.marketplace.entity.NotificationType;
 import com.campus.marketplace.entity.Order;
 import com.campus.marketplace.entity.OrderStatus;
 import com.campus.marketplace.entity.PaymentMethod;
@@ -45,6 +46,7 @@ public class ReservationService {
     private final ReservationReleaseService releaseService;
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher events;
+    private final NotificationService notificationService;
 
     /**
      * Seller only. Refunds the buyer's deposit through Stripe, then frees the item. The listing row is locked
@@ -140,6 +142,10 @@ public class ReservationService {
                 .completedAt(Instant.now())
                 .build());
         log.info("Seller {} confirmed the cash handover of listing {} to buyer {}", userId, listingId, buyer.getId());
+        notificationService.notify(buyer.getId(), NotificationType.CASH_HANDOVER_CONFIRMED,
+                "Handover confirmed",
+                listing.getOwner().getFullName() + " confirmed the handover of \"" + listing.getTitle() + "\". The purchase is complete.",
+                "/purchases");
         events.publishEvent(new TradeEvents.CashSaleCompleted(listingId, listing.getTitle(), priceCents, deposit,
                 priceCents - deposit, currency, party(listing.getOwner()), party(buyer)));
         return OrderResponse.forSeller(order, Duration.ZERO);

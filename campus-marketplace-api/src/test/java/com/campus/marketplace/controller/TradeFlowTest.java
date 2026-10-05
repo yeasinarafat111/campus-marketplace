@@ -82,6 +82,7 @@ class TradeFlowTest {
     @Autowired private ListingRepository listingRepository;
     @Autowired private PaymentRepository paymentRepository;
     @Autowired private OrderRepository orderRepository;
+    @Autowired private com.campus.marketplace.repository.NotificationRepository notificationRepository;
     @Autowired private JwtService jwtService;
     @Autowired private ReservationService reservationService;
     @Autowired private com.campus.marketplace.service.ReservationExpiryJob expiryJob;
@@ -163,6 +164,42 @@ class TradeFlowTest {
         completePayment(session, "pi_deposit");
 
         verify(mailService, times(2)).sendNotification(anyString(), anyString(), anyString());
+    }
+
+    // ---- in-app notifications ----
+
+    @Test
+    void reservePurchaseAndCashHandover_notifyTheRightPeople_onceEach() throws Exception {
+        String session = checkoutSession(buyer, lamp, "RESERVE_ITEM");
+        completePayment(session, "pi_deposit");
+        completePayment(session, "pi_deposit"); // duplicate webhook delivery
+        assertThat(notificationRepository.findAll()).singleElement().satisfies(n -> {
+            assertThat(n.getUser().getId()).isEqualTo(seller.getId());
+            assertThat(n.getType()).isEqualTo(com.campus.marketplace.entity.NotificationType.RESERVED);
+            assertThat(n.getBody()).contains("Bob Buyer").contains("Desk lamp");
+            assertThat(n.getLink()).isEqualTo("/listings/" + lamp.getId());
+        });
+
+        completePayment(checkoutSession(buyer, lamp, "PURCHASE"), "pi_balance");
+        assertThat(notificationRepository.findAll()).hasSize(2)
+                .anySatisfy(n -> {
+                    assertThat(n.getType()).isEqualTo(com.campus.marketplace.entity.NotificationType.PURCHASED);
+                    assertThat(n.getUser().getId()).isEqualTo(seller.getId());
+                    assertThat(n.getLink()).isEqualTo("/sales");
+                });
+    }
+
+    @Test
+    void aCashHandover_notifiesTheBuyer() throws Exception {
+        reserve(lamp, buyer);
+        notificationRepository.deleteAll();
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isOk());
+        assertThat(notificationRepository.findAll()).singleElement().satisfies(n -> {
+            assertThat(n.getUser().getId()).isEqualTo(buyer.getId());
+            assertThat(n.getType()).isEqualTo(com.campus.marketplace.entity.NotificationType.CASH_HANDOVER_CONFIRMED);
+            assertThat(n.getLink()).isEqualTo("/purchases");
+        });
     }
 
     // ---- buy ----

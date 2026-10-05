@@ -6,6 +6,7 @@ import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.ReportRequest;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
+import com.campus.marketplace.entity.NotificationType;
 import com.campus.marketplace.entity.Report;
 import com.campus.marketplace.entity.ReportAction;
 import com.campus.marketplace.entity.ReportStatus;
@@ -49,6 +50,7 @@ public class ReportService {
     private final CurrentUserProvider currentUser;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
+    private final NotificationService notificationService;
 
     /** One report per user per listing. Not your own listing, and not one that isn't public yet. */
     public void report(Long listingId, ReportRequest request) {
@@ -146,6 +148,12 @@ public class ReportService {
                 r.setResolution(action);
                 r.setResolvedBy(admin);
                 r.setResolvedAt(now);
+            }
+            for (Report r : closing) {
+                notificationService.notify(r.getReporter().getId(), NotificationType.REPORT_RESOLVED,
+                        "Your report was reviewed",
+                        "An admin reviewed your report about \"" + r.getListingTitle() + "\". Thanks for helping keep the marketplace safe.",
+                        null);
             }
             log.info("Admin {} resolved report {} with {} ({} report(s) closed)", adminId, reportId, action, closing.size());
             return AdminReportResponse.from(report);

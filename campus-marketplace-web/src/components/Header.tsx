@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { chatKeys, getUnreadCount } from '../api/chat'
 import { useAuth } from '../hooks/useAuth'
 import Logo from './Logo'
+import NotificationBell from './NotificationBell'
 import Avatar from './ui/Avatar'
 import { buttonClasses } from './ui/buttonClasses'
 import Dialog from './ui/Dialog'
@@ -161,6 +162,7 @@ export default function Header() {
           </Link>
         </div>
 
+        {isAuthenticated && <NotificationBell />}
         {isAuthenticated && <MessagesLink />}
 
         {isAuthenticated ? (
