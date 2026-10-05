@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { deleteListing, markSold, myListings } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
+import ListingPaymentActions from '../components/ListingPaymentActions'
 import Pagination from '../components/Pagination'
 import { useFetch } from '../hooks/useFetch'
 import { formatCategory, formatPrice } from '../lib'
@@ -57,6 +58,7 @@ export default function MyListingsPage() {
               </p>
             </div>
             <div className="flex gap-3 text-sm">
+              <ListingPaymentActions listing={l} />
               <Link to={`/listings/${l.id}/edit`} className="text-indigo-600 hover:underline">Edit</Link>
               {l.status === 'ACTIVE' && (
                 <button onClick={() => onSold(l.id, l.title)} className="text-indigo-600 hover:underline">Mark sold</button>

@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { getListing } from '../api/listings'
 import Alert from '../components/Alert'
+import ListingPaymentActions from '../components/ListingPaymentActions'
 import { useAuth } from '../hooks/useAuth'
 import { useFetch } from '../hooks/useFetch'
 import { formatCategory, formatPrice } from '../lib'
@@ -36,6 +37,7 @@ export default function ListingDetailPage() {
         <p className="mt-6 text-sm text-gray-500">
           Sold by {listing.owner.fullName} · listed {new Date(listing.createdAt).toLocaleDateString()}
         </p>
+        <ListingPaymentActions listing={listing} />
         {isOwner && (
           <Link
             to={`/listings/${listing.id}/edit`}

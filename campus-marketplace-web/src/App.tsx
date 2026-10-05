@@ -10,6 +10,8 @@ import ListingDetailPage from './pages/ListingDetailPage'
 import ListingsPage from './pages/ListingsPage'
 import LoginPage from './pages/LoginPage'
 import MyListingsPage from './pages/MyListingsPage'
+import PaymentCancelPage from './pages/PaymentCancelPage'
+import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import SignupPage from './pages/SignupPage'
 import VerifyOtpPage from './pages/VerifyOtpPage'
@@ -34,6 +36,8 @@ export default function App() {
               <Route path="/listings/new" element={<CreateEditListingPage />} />
               <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
               <Route path="/my-listings" element={<MyListingsPage />} />
+              <Route path="/payments/success" element={<PaymentSuccessPage />} />
+              <Route path="/payments/cancel" element={<PaymentCancelPage />} />
             </Route>
 
             <Route element={<AdminRoute />}>
