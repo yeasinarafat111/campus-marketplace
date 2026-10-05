@@ -62,6 +62,12 @@ public class User {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * Set when the password is reset. Access and refresh tokens issued before this moment are rejected, so
+     * a reset ends every existing session. Null until the first reset.
+     */
+    private Instant passwordChangedAt;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

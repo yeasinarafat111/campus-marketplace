@@ -51,13 +51,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = header.substring(BEARER_PREFIX.length()).trim();
         try {
-            String email = jwtService.validateAccessToken(token);
+            JwtService.ParsedToken parsed = jwtService.parseAccessToken(token);
+            String email = parsed.subject();
             // Reload the user so disabled accounts and role changes take effect immediately.
             UserDetails user = userDetailsService.loadUserByUsername(email);
             if (!user.isAccountNonLocked()) {
                 request.setAttribute(AUTH_ERROR_ATTRIBUTE, "Account has been deactivated");
             } else if (!user.isEnabled()) {
                 request.setAttribute(AUTH_ERROR_ATTRIBUTE, "Account is not enabled");
+            } else if (user instanceof UserPrincipal principal && principal.isIssuedBeforePasswordChange(parsed.issuedAt())) {
+                request.setAttribute(AUTH_ERROR_ATTRIBUTE, "Password was changed. Please log in again.");
             } else {
                 authenticate(user, request);
             }

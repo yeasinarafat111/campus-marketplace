@@ -49,7 +49,26 @@ public class JwtService {
      * @throws JwtException if the token is malformed, tampered with, expired or not an access token
      */
     public String validateAccessToken(String token) {
-        return parse(token, TokenType.ACCESS).getSubject();
+        return parseAccessToken(token).subject();
+    }
+
+    /** Like {@link #validateAccessToken} but also returns when the token was issued. */
+    public ParsedToken parseAccessToken(String token) {
+        return toParsed(parse(token, TokenType.ACCESS));
+    }
+
+    /** Like {@link #validateRefreshToken} but also returns when the token was issued. */
+    public ParsedToken parseRefreshToken(String token) {
+        return toParsed(parse(token, TokenType.REFRESH));
+    }
+
+    public record ParsedToken(String subject, Instant issuedAt) {
+    }
+
+    private static ParsedToken toParsed(Claims claims) {
+        // Tokens are always minted with iat; treat a missing one as the epoch so it can't outlive a reset.
+        Date iat = claims.getIssuedAt();
+        return new ParsedToken(claims.getSubject(), iat == null ? Instant.EPOCH : iat.toInstant());
     }
 
     /**
@@ -57,7 +76,7 @@ public class JwtService {
      * @throws JwtException if the token is malformed, tampered with, expired or not a refresh token
      */
     public String validateRefreshToken(String token) {
-        return parse(token, TokenType.REFRESH).getSubject();
+        return parseRefreshToken(token).subject();
     }
 
     public Duration getAccessTokenExpiration() {

@@ -41,6 +41,22 @@ class MailServiceTest {
     }
 
     @Test
+    void sendPasswordResetEmail_usesResetWording() {
+        mailService.sendPasswordResetEmail("alice@seu.edu.bd", "004217");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        SimpleMailMessage message = captor.getValue();
+
+        assertThat(message.getTo()).containsExactly("alice@seu.edu.bd");
+        assertThat(message.getSubject()).isEqualTo(MailService.RESET_SUBJECT);
+        assertThat(message.getText())
+                .contains("004217")
+                .contains("reset your Campus Marketplace password")
+                .contains("expires in 10 minutes");
+    }
+
+    @Test
     void sendOtpEmail_wrapsSmtpFailure() {
         doThrow(new MailSendException("Connection refused")).when(mailSender).send(any(SimpleMailMessage.class));
 

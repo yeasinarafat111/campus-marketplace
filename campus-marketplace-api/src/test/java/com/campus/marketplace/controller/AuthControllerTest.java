@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -422,6 +423,168 @@ class AuthControllerTest {
 
     // ---- helpers ----
 
+    // ---- forgot-password ----
+
+    private static final String FORGOT_MESSAGE = "If that email is registered, we've sent a password reset code.";
+
+    @Test
+    void forgotPassword_forRegisteredUser_issuesResetOtp_andEmailsTheSameCode() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+
+        forgot("rita@seu.edu.bd").andExpect(status().isOk()).andExpect(jsonPath("$.message").value(FORGOT_MESSAGE));
+
+        String code = latestResetCode("rita@seu.edu.bd");
+        assertThat(code).matches("\\d{6}");
+        verify(mailService).sendPasswordResetEmail("rita@seu.edu.bd", code);
+        verify(mailService, never()).sendOtpEmail(anyString(), anyString());
+    }
+
+    @Test
+    void forgotPassword_forUnknownEmail_returnsTheSameResponse_andSendsNothing() throws Exception {
+        forgot("nobody@seu.edu.bd").andExpect(status().isOk()).andExpect(jsonPath("$.message").value(FORGOT_MESSAGE));
+
+        verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
+        assertThat(otpTokenRepository.count()).isZero();
+    }
+
+    @Test
+    void forgotPassword_forUnverifiedUser_sendsNothing() throws Exception {
+        saveUser("newbie@seu.edu.bd", false);
+
+        forgot("newbie@seu.edu.bd").andExpect(status().isOk()).andExpect(jsonPath("$.message").value(FORGOT_MESSAGE));
+
+        verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
+    }
+
+    @Test
+    void forgotPassword_insideCooldown_looksIdentical_andDoesNotSendASecondEmail() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        forgot("rita@seu.edu.bd").andExpect(status().isOk());
+
+        forgot("rita@seu.edu.bd").andExpect(status().isOk()).andExpect(jsonPath("$.message").value(FORGOT_MESSAGE));
+
+        verify(mailService, org.mockito.Mockito.times(1)).sendPasswordResetEmail(anyString(), anyString());
+    }
+
+    @Test
+    void forgotPassword_whenMailFails_stillLooksIdentical() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        doThrow(new EmailDeliveryException("smtp down", null)).when(mailService).sendPasswordResetEmail(anyString(), anyString());
+
+        forgot("rita@seu.edu.bd").andExpect(status().isOk()).andExpect(jsonPath("$.message").value(FORGOT_MESSAGE));
+    }
+
+    @Test
+    void forgotPassword_withInvalidEmail_returns400() throws Exception {
+        forgot("not-an-email").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.email").value("Email must be a valid email address"));
+    }
+
+    // ---- reset-password ----
+
+    @Test
+    void resetPassword_withValidCode_changesPassword() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        forgot("rita@seu.edu.bd");
+        String code = latestResetCode("rita@seu.edu.bd");
+
+        reset("rita@seu.edu.bd", code, "brand-new-pass").andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password updated. You can now log in with your new password."));
+
+        login("rita@seu.edu.bd", "brand-new-pass").andExpect(status().isOk());
+        login("rita@seu.edu.bd", PASSWORD).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void resetPassword_codeCannotBeReused() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        forgot("rita@seu.edu.bd");
+        String code = latestResetCode("rita@seu.edu.bd");
+        reset("rita@seu.edu.bd", code, "brand-new-pass").andExpect(status().isOk());
+
+        reset("rita@seu.edu.bd", code, "another-new-pass").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("This verification code has already been used"));
+
+        login("rita@seu.edu.bd", "brand-new-pass").andExpect(status().isOk());
+    }
+
+    @Test
+    void resetPassword_withWrongCode_returns400_andKeepsOldPassword() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        forgot("rita@seu.edu.bd");
+        String code = latestResetCode("rita@seu.edu.bd");
+        String wrong = code.equals("000000") ? "000001" : "000000";
+
+        reset("rita@seu.edu.bd", wrong, "brand-new-pass").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid verification code"));
+
+        login("rita@seu.edu.bd", PASSWORD).andExpect(status().isOk());
+    }
+
+    @Test
+    void resetPassword_withExpiredCode_returns400() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        forgot("rita@seu.edu.bd");
+        String code = latestResetCode("rita@seu.edu.bd");
+        jdbcTemplate.update("update otp_tokens set expires_at = ?", java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(5)));
+
+        reset("rita@seu.edu.bd", code, "brand-new-pass").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Verification code has expired. Please request a new one."));
+
+        login("rita@seu.edu.bd", PASSWORD).andExpect(status().isOk());
+    }
+
+    @Test
+    void resetPassword_signupCodeDoesNotWorkForReset() throws Exception {
+        String signupCode = signupAndGetCode("rita@seu.edu.bd");
+        userRepository.findByEmail("rita@seu.edu.bd").ifPresent(u -> {
+            u.setEnabled(true);
+            userRepository.save(u);
+        });
+
+        reset("rita@seu.edu.bd", signupCode, "brand-new-pass").andExpect(status().isBadRequest());
+
+        login("rita@seu.edu.bd", PASSWORD).andExpect(status().isOk());
+    }
+
+    @Test
+    void resetPassword_forUnknownEmail_looksLikeAWrongCode() throws Exception {
+        reset("nobody@seu.edu.bd", "123456", "brand-new-pass").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid verification code"));
+    }
+
+    @Test
+    void resetPassword_validatesInput() throws Exception {
+        postJson("/api/auth/reset-password", """
+                {"email":"nope","code":"12","newPassword":"short"}""")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.email").value("Email must be a valid email address"))
+                .andExpect(jsonPath("$.fieldErrors.code").value("Code must be 6 digits"))
+                .andExpect(jsonPath("$.fieldErrors.newPassword").value("Password must be between 8 and 72 characters"));
+    }
+
+    @Test
+    void resetPassword_endsExistingSessions() throws Exception {
+        saveUser("rita@seu.edu.bd", true);
+        JsonNode tokens = readJson(login("rita@seu.edu.bd", PASSWORD).andExpect(status().isOk()));
+        String oldAccess = tokens.get("accessToken").asText();
+        String oldRefresh = tokens.get("refreshToken").asText();
+        mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + oldAccess)).andExpect(status().isOk());
+
+        // JWT timestamps are whole seconds; make sure the reset lands in a later second than the login.
+        Thread.sleep(1100);
+        forgot("rita@seu.edu.bd");
+        reset("rita@seu.edu.bd", latestResetCode("rita@seu.edu.bd"), "brand-new-pass").andExpect(status().isOk());
+
+        refresh(oldRefresh).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Password was changed. Please log in again."));
+        mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + oldAccess))
+                .andExpect(status().isUnauthorized());
+
+        JsonNode fresh = readJson(login("rita@seu.edu.bd", "brand-new-pass").andExpect(status().isOk()));
+        refresh(fresh.get("refreshToken").asText()).andExpect(status().isOk());
+    }
+
     private UserPrincipal saveUser(String email, boolean enabled) {
         return UserPrincipal.from(userRepository.save(User.builder()
                 .fullName("Test User")
@@ -447,6 +610,20 @@ class AuthControllerTest {
 
     private ResultActions resend(String email) throws Exception {
         return postJson("/api/auth/resend-otp", objectMapper.writeValueAsString(java.util.Map.of("email", email)));
+    }
+
+    private ResultActions forgot(String email) throws Exception {
+        return postJson("/api/auth/forgot-password", objectMapper.writeValueAsString(java.util.Map.of("email", email)));
+    }
+
+    private ResultActions reset(String email, String code, String newPassword) throws Exception {
+        return postJson("/api/auth/reset-password", objectMapper.writeValueAsString(
+                java.util.Map.of("email", email, "code", code, "newPassword", newPassword)));
+    }
+
+    private String latestResetCode(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return otpTokenRepository.findTopByUserAndPurposeOrderByIdDesc(user, OtpPurpose.RESET_PASSWORD).orElseThrow().getCode();
     }
 
     private ResultActions login(String email, String password) throws Exception {

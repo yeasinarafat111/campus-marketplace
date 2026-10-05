@@ -52,15 +52,27 @@ public class OtpService {
      */
     @Transactional(readOnly = true)
     public void checkResendCooldown(User user, OtpPurpose purpose) {
-        otpTokenRepository.findTopByUserAndPurposeOrderByIdDesc(user, purpose).ifPresent(last -> {
-            Duration sinceLast = Duration.between(last.getCreatedAt(), Instant.now());
-            Duration remaining = otpProperties.resendCooldown().minus(sinceLast);
-            if (!remaining.isNegative() && !remaining.isZero()) {
-                long seconds = Math.max(1, (remaining.toMillis() + 999) / 1000);
-                throw new TooManyRequestsException(
-                        "Please wait " + seconds + " seconds before requesting another code", seconds);
-            }
+        remainingCooldown(user, purpose).ifPresent(remaining -> {
+            long seconds = Math.max(1, (remaining.toMillis() + 999) / 1000);
+            throw new TooManyRequestsException(
+                    "Please wait " + seconds + " seconds before requesting another code", seconds);
         });
+    }
+
+    /**
+     * Same check as {@link #checkResendCooldown} but without throwing. Use this where the caller wants to
+     * swallow the cooldown: an exception passing through this service's transaction proxy would mark the
+     * caller's transaction rollback-only even if the caller catches it.
+     */
+    @Transactional(readOnly = true)
+    public boolean isInResendCooldown(User user, OtpPurpose purpose) {
+        return remainingCooldown(user, purpose).isPresent();
+    }
+
+    private Optional<Duration> remainingCooldown(User user, OtpPurpose purpose) {
+        return otpTokenRepository.findTopByUserAndPurposeOrderByIdDesc(user, purpose)
+                .map(last -> otpProperties.resendCooldown().minus(Duration.between(last.getCreatedAt(), Instant.now())))
+                .filter(remaining -> !remaining.isNegative() && !remaining.isZero());
     }
 
     /**

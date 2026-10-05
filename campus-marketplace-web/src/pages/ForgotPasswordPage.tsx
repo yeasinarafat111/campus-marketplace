@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { forgotPassword } from '../api/auth'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
@@ -9,7 +9,8 @@ import SubmitButton from '../components/SubmitButton'
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [params] = useSearchParams()
+  const [email, setEmail] = useState(params.get('email') ?? '')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -18,8 +19,8 @@ export default function ForgotPasswordPage() {
     setError('')
     setLoading(true)
     try {
-      await forgotPassword({ email: email.trim() })
-      navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`)
+      const { data } = await forgotPassword({ email: email.trim() })
+      navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`, { state: { notice: data.message } })
     } catch (err) {
       setError(parseApiError(err).message)
     } finally {

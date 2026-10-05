@@ -23,8 +23,7 @@ export const resendOtp = (body: { email: string }) =>
 export const login = (body: { email: string; password: string }) =>
   client.post<AuthResponse>('/api/auth/login', body)
 
-// NOTE: the backend does not expose these two endpoints yet (only OtpPurpose.RESET_PASSWORD
-// exists). Paths and payloads below are assumed; adjust when the backend adds them.
+// Same response whether or not the email is registered (the backend doesn't reveal which are).
 export const forgotPassword = (body: { email: string }) =>
   client.post<MessageResponse>('/api/auth/forgot-password', body)
 

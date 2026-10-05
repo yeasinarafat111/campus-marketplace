@@ -7,6 +7,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 
@@ -22,6 +24,7 @@ public class UserPrincipal implements UserDetails {
     private final Role role;
     private final boolean enabled;
     private final boolean active;
+    private final Instant passwordChangedAt;
 
     /** An active (not deactivated) principal. */
     public UserPrincipal(Long id, String email, String password, Role role, boolean enabled) {
@@ -29,6 +32,12 @@ public class UserPrincipal implements UserDetails {
     }
 
     public UserPrincipal(Long id, String email, String password, Role role, boolean enabled, boolean active) {
+        this(id, email, password, role, enabled, active, null);
+    }
+
+    public UserPrincipal(Long id, String email, String password, Role role, boolean enabled, boolean active,
+                         Instant passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
         this.id = id;
         this.email = email;
         this.password = password;
@@ -39,7 +48,7 @@ public class UserPrincipal implements UserDetails {
 
     public static UserPrincipal from(User user) {
         return new UserPrincipal(user.getId(), user.getEmail(), user.getPassword(), user.getRole(),
-                user.isEnabled(), user.isActive());
+                user.isEnabled(), user.isActive(), user.getPasswordChangedAt());
     }
 
     @Override
@@ -55,6 +64,15 @@ public class UserPrincipal implements UserDetails {
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * True if a token issued at {@code issuedAt} predates the last password reset. JWT timestamps are whole
+     * seconds, so the reset time is truncated to match; a token issued in the same second as the reset
+     * is still accepted.
+     */
+    public boolean isIssuedBeforePasswordChange(Instant issuedAt) {
+        return passwordChangedAt != null && issuedAt.isBefore(passwordChangedAt.truncatedTo(ChronoUnit.SECONDS));
     }
 
     /** Deactivated accounts are reported as locked, so Spring Security's account checks reject them. */

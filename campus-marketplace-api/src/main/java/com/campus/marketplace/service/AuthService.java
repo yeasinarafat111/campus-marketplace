@@ -2,10 +2,12 @@ package com.campus.marketplace.service;
 
 import com.campus.marketplace.dto.AccessTokenResponse;
 import com.campus.marketplace.dto.AuthResponse;
+import com.campus.marketplace.dto.ForgotPasswordRequest;
 import com.campus.marketplace.dto.LoginRequest;
 import com.campus.marketplace.dto.MessageResponse;
 import com.campus.marketplace.dto.RefreshTokenRequest;
 import com.campus.marketplace.dto.ResendOtpRequest;
+import com.campus.marketplace.dto.ResetPasswordRequest;
 import com.campus.marketplace.dto.SignupRequest;
 import com.campus.marketplace.dto.SignupResponse;
 import com.campus.marketplace.dto.VerifyOtpRequest;
@@ -14,6 +16,7 @@ import com.campus.marketplace.entity.OtpPurpose;
 import com.campus.marketplace.entity.Role;
 import com.campus.marketplace.entity.User;
 import com.campus.marketplace.exception.ConflictException;
+import com.campus.marketplace.exception.EmailDeliveryException;
 import com.campus.marketplace.exception.ForbiddenException;
 import com.campus.marketplace.exception.InvalidOtpException;
 import com.campus.marketplace.exception.UnauthorizedException;
@@ -23,6 +26,7 @@ import com.campus.marketplace.security.UserPrincipal;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -30,8 +34,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -112,6 +118,48 @@ public class AuthService {
     }
 
     /**
+     * Emails a RESET_PASSWORD code to a verified, active account. Always returns the same message, whether
+     * or not the email is registered, so this endpoint can't be used to discover registered emails. For the
+     * same reason, a request inside the resend cooldown or a mail failure is logged and answered the same way
+     * instead of surfacing an error that only exists for registered emails.
+     */
+    @Transactional
+    public MessageResponse forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(normalizeEmail(request.email()))
+                .filter(user -> user.isEnabled() && user.isActive())
+                .ifPresent(user -> {
+                    if (otpService.isInResendCooldown(user, OtpPurpose.RESET_PASSWORD)) {
+                        log.info("Password reset requested for user {} inside the cooldown; ignoring", user.getId());
+                        return;
+                    }
+                    try {
+                        String code = otpService.issue(user, OtpPurpose.RESET_PASSWORD);
+                        mailService.sendPasswordResetEmail(user.getEmail(), code);
+                    } catch (EmailDeliveryException e) {
+                        log.error("Password reset email for user {} could not be delivered", user.getId());
+                    }
+                });
+        return new MessageResponse("If that email is registered, we've sent a password reset code.");
+    }
+
+    /**
+     * Checks a RESET_PASSWORD code and sets the new password. The code is single-use. Setting
+     * {@code passwordChangedAt} makes every access and refresh token issued earlier stop working.
+     * Not rolled back on InvalidOtpException, so wrong guesses are still counted.
+     */
+    @Transactional(noRollbackFor = InvalidOtpException.class)
+    public MessageResponse resetPassword(ResetPasswordRequest request) {
+        // Unknown, unverified and deactivated accounts get the same message as a wrong code.
+        User user = userRepository.findByEmail(normalizeEmail(request.email()))
+                .filter(u -> u.isEnabled() && u.isActive())
+                .orElseThrow(() -> new InvalidOtpException("Invalid verification code"));
+        otpService.consume(user, OtpPurpose.RESET_PASSWORD, request.code());
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setPasswordChangedAt(Instant.now());
+        return new MessageResponse("Password updated. You can now log in with your new password.");
+    }
+
+    /**
      * @throws org.springframework.security.authentication.BadCredentialsException wrong email or password (401)
      * @throws org.springframework.security.authentication.DisabledException correct password but email not verified (403)
      */
@@ -129,9 +177,9 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AccessTokenResponse refresh(RefreshTokenRequest request) {
-        String email;
+        JwtService.ParsedToken token;
         try {
-            email = jwtService.validateRefreshToken(request.refreshToken());
+            token = jwtService.parseRefreshToken(request.refreshToken());
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException("Refresh token has expired");
         } catch (JwtException | IllegalArgumentException e) {
@@ -139,7 +187,7 @@ public class AuthService {
         }
 
         // Re-check the account: it may have been deleted or disabled since the refresh token was issued.
-        UserPrincipal user = userRepository.findByEmail(email)
+        UserPrincipal user = userRepository.findByEmail(token.subject())
                 .map(UserPrincipal::from)
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
         if (!user.isAccountNonLocked()) {
@@ -147,6 +195,9 @@ public class AuthService {
         }
         if (!user.isEnabled()) {
             throw new UnauthorizedException("Account is not enabled");
+        }
+        if (user.isIssuedBeforePasswordChange(token.issuedAt())) {
+            throw new UnauthorizedException("Password was changed. Please log in again.");
         }
 
         return new AccessTokenResponse(

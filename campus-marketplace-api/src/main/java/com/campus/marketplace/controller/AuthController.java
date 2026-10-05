@@ -2,10 +2,12 @@ package com.campus.marketplace.controller;
 
 import com.campus.marketplace.dto.AccessTokenResponse;
 import com.campus.marketplace.dto.AuthResponse;
+import com.campus.marketplace.dto.ForgotPasswordRequest;
 import com.campus.marketplace.dto.LoginRequest;
 import com.campus.marketplace.dto.MessageResponse;
 import com.campus.marketplace.dto.RefreshTokenRequest;
 import com.campus.marketplace.dto.ResendOtpRequest;
+import com.campus.marketplace.dto.ResetPasswordRequest;
 import com.campus.marketplace.dto.SignupRequest;
 import com.campus.marketplace.dto.SignupResponse;
 import com.campus.marketplace.dto.VerifyOtpRequest;
@@ -41,6 +43,16 @@ public class AuthController {
     @PostMapping("/resend-otp")
     public MessageResponse resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         return authService.resendSignupOtp(request);
+    }
+
+    @PostMapping("/forgot-password")
+    public MessageResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return authService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public MessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request);
     }
 
     @PostMapping("/login")
