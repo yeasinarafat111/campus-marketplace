@@ -33,13 +33,16 @@ public class StripeWebhookService {
                 Session session = session(event);
                 // "unpaid" happens for delayed methods (e.g. bank debits); those finish with async_payment_succeeded.
                 if ("paid".equals(session.getPaymentStatus()) || "no_payment_required".equals(session.getPaymentStatus())) {
-                    paymentService.markSucceeded(session.getId());
+                    paymentService.markSucceeded(session.getId(), session.getPaymentIntent());
                 } else {
                     log.info("Checkout session {} completed with payment_status={}; waiting for async result",
                             session.getId(), session.getPaymentStatus());
                 }
             }
-            case "checkout.session.async_payment_succeeded" -> paymentService.markSucceeded(session(event).getId());
+            case "checkout.session.async_payment_succeeded" -> {
+                Session session = session(event);
+                paymentService.markSucceeded(session.getId(), session.getPaymentIntent());
+            }
             case "checkout.session.async_payment_failed", "checkout.session.expired" ->
                     paymentService.markFailed(session(event).getId());
             default -> log.debug("Ignoring Stripe event {} ({})", event.getId(), event.getType());

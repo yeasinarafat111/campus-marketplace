@@ -64,6 +64,28 @@ public class MailService {
         send(to, RESET_SUBJECT, RESET_TEMPLATE, code, "password reset email");
     }
 
+    /**
+     * Sends a plain-text notification (reservation and purchase emails). Unlike the OTP emails, callers run
+     * this after their transaction has committed and must not let a mail failure undo a payment, so it throws
+     * the same exception and the caller decides to log and move on.
+     *
+     * @throws EmailDeliveryException if the SMTP server can't be reached or rejects the message
+     */
+    public void sendNotification(String to, String subject, String body) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(emailProperties.from());
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(body);
+        try {
+            mailSender.send(message);
+            log.info("Sent notification '{}' to {}", subject, to);
+        } catch (MailException e) {
+            log.error("Failed to send notification '{}' to {}: {}", subject, to, e.getMessage());
+            throw new EmailDeliveryException("Could not send notification", e);
+        }
+    }
+
     private void send(String to, String subject, String template, String code, String description) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(emailProperties.from());

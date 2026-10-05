@@ -36,7 +36,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"owner", "description", "reservedBy"})
+@ToString(exclude = {"owner", "description", "reservedBy", "buyer"})
 public class Listing {
 
     @Id
@@ -85,6 +85,23 @@ public class Listing {
     private User reservedBy;
 
     private Instant reservedAt;
+
+    /** When the current reservation lapses and the item becomes available again. Null if not reserved. */
+    private Instant reservationExpiresAt;
+
+    /** Who bought it, set when the purchase payment succeeds. Null until sold (and for items sold off-platform). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "buyer_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private User buyer;
+
+    private Instant soldAt;
+
+    public void clearReservation() {
+        this.reservedBy = null;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
+    }
 
     public boolean isFeatured(Instant now) {
         return featuredUntil != null && featuredUntil.isAfter(now);

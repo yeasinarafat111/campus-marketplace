@@ -8,6 +8,7 @@ import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingService;
 import com.campus.marketplace.service.PaymentService;
+import com.campus.marketplace.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -41,6 +42,7 @@ public class ListingController {
 
     private final ListingService listingService;
     private final PaymentService paymentService;
+    private final ReservationService reservationService;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -74,6 +76,18 @@ public class ListingController {
     @GetMapping("/{id}")
     public ListingResponse get(@PathVariable Long id) {
         return listingService.get(id);
+    }
+
+    /** Seller cancels a reservation; the buyer's deposit is refunded in full. */
+    @PostMapping("/{id}/reservation/cancel")
+    public ListingResponse cancelReservation(@PathVariable Long id) {
+        return reservationService.cancelAsSeller(id);
+    }
+
+    /** Buyer gives the item up; the deposit is kept. */
+    @PostMapping("/{id}/reservation/release")
+    public ListingResponse releaseReservation(@PathVariable Long id) {
+        return reservationService.releaseAsBuyer(id);
     }
 
     /** What it would cost the caller to feature or reserve this listing. Needs a login (see SecurityConfig). */

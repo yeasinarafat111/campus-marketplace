@@ -16,6 +16,7 @@ import com.campus.marketplace.repository.ListingRepository;
 import com.campus.marketplace.repository.ListingSpecifications;
 import com.campus.marketplace.repository.UserRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
+import com.campus.marketplace.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +51,7 @@ public class ListingService {
     private final CurrentUserProvider currentUser;
     private final ImageStorageService imageStorage;
     private final TransactionTemplate transactionTemplate;
+    private final PaymentService paymentService;
 
     /**
      * Public browse: ACTIVE listings whose owner hasn't been deactivated. Without an explicit {@code sort},
@@ -96,7 +98,7 @@ public class ListingService {
         if (!listing.getOwner().isActive() && !currentUser.isAdmin()) {
             throw notFound(id);
         }
-        return ListingResponse.from(listing);
+        return ListingResponse.from(listing, currentUser.find().map(UserPrincipal::getId).orElse(null));
     }
 
     /** The current user's listings, including sold ones unless a status is given. */
@@ -162,25 +164,48 @@ public class ListingService {
             throw new ConflictException("Price can't change while the item is reserved");
         }
         apply(request, listing);
-        return ListingResponse.from(listing);
+        return ListingResponse.from(listing, currentUser.requireId());
     }
 
-    /** Owner only. Idempotent: marking an already-sold listing returns it unchanged. */
+    /**
+     * Owner only. Idempotent: marking an already-sold listing returns it unchanged. A reserved item can't be
+     * marked sold by hand: the buyer's deposit would be stranded, so the seller must cancel the reservation
+     * (which refunds it) first.
+     */
     @Transactional
     public ListingResponse markSold(Long id) {
-        Listing listing = findWithOwner(id);
+        Listing listing = listingRepository.findForUpdateById(id).orElseThrow(() -> notFound(id));
         requireOwner(listing, "You can only mark your own listings as sold");
-        listing.setStatus(ListingStatus.SOLD);
-        return ListingResponse.from(listing);
+        if (listing.getStatus() != ListingStatus.SOLD) {
+            if (listing.isReserved()) {
+                throw new ConflictException("This item is reserved. Cancel the reservation first; the buyer's deposit is refunded.");
+            }
+            listing.setStatus(ListingStatus.SOLD);
+            listing.setSoldAt(Instant.now());
+        }
+        return ListingResponse.from(listing, currentUser.requireId());
     }
 
-    /** Owner or ADMIN. */
+    /**
+     * Owner or ADMIN. A reserved item holds a buyer's deposit, so the owner must cancel the reservation
+     * first. An admin removing it (moderation) refunds the deposit as part of the delete.
+     */
     @Transactional
     public void delete(Long id) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findForUpdateById(id)
                 .orElseThrow(() -> notFound(id));
-        if (!isOwner(listing) && !currentUser.isAdmin()) {
+        boolean owner = isOwner(listing);
+        if (!owner && !currentUser.isAdmin()) {
             throw new ForbiddenException("You can only delete your own listings");
+        }
+        if (listing.isReserved()) {
+            if (owner) {
+                throw new ConflictException("This item is reserved. Cancel the reservation first; the buyer's deposit is refunded.");
+            }
+            var refunded = paymentService.refundDeposit(listing);
+            if (refunded != null) {
+                refunded.setListing(null); // the payment outlives the listing; the database nulls the link too
+            }
         }
         listingRepository.delete(listing);
     }

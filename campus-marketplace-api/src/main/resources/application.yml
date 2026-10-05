@@ -69,6 +69,8 @@ app:
   registration:
     # Only emails at exactly this domain may sign up (no subdomains).
     allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:seu.edu.bd}
+  # Where emails link to. Set FRONTEND_URL for any environment that isn't production.
+  frontend-url: ${FRONTEND_URL:https://campusmarketplacebackend.web.app}
   mail:
     # Defaults to the SMTP username, since most shared hosts require From to match the login.
     from: ${MAIL_FROM:${MAIL_USERNAME:no-reply@campus-marketplace.local}}

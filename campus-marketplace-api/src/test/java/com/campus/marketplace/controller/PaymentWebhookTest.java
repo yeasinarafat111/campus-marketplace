@@ -12,6 +12,9 @@ import com.campus.marketplace.repository.ListingRepository;
 import com.campus.marketplace.repository.PaymentRepository;
 import com.campus.marketplace.repository.UserRepository;
 import com.stripe.Stripe;
+import com.campus.marketplace.exception.PaymentProviderException;
+import com.campus.marketplace.service.CheckoutGateway;
+import com.campus.marketplace.service.MailService;
 import com.stripe.net.Webhook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +24,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -31,6 +35,14 @@ import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,6 +60,9 @@ class PaymentWebhookTest {
     @Autowired private ListingRepository listingRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
+    // Refunds and emails go through these; tests never talk to Stripe or an SMTP server.
+    @MockitoBean private CheckoutGateway checkoutGateway;
+    @MockitoBean private MailService mailService;
 
     private User seller;
     private User buyer;
@@ -116,17 +131,52 @@ class PaymentWebhookTest {
     }
 
     @Test
-    void secondReservePayment_isRecordedAsSucceeded_butKeepsFirstBuyersReservation() throws Exception {
+    void secondReservePayment_isAutomaticallyRefunded_andKeepsFirstBuyersReservation() throws Exception {
         // Both buyers opened checkout before either paid.
         savePayment("cs_first", PaymentPurpose.RESERVE_ITEM, buyer);
         savePayment("cs_second", PaymentPurpose.RESERVE_ITEM, secondBuyer);
 
-        send(event("evt_1", "checkout.session.completed", "cs_first", "paid")).andExpect(status().isOk());
-        send(event("evt_2", "checkout.session.completed", "cs_second", "paid")).andExpect(status().isOk());
+        send(eventWithIntent("evt_1", "checkout.session.completed", "cs_first", "paid", "pi_first")).andExpect(status().isOk());
+        send(eventWithIntent("evt_2", "checkout.session.completed", "cs_second", "paid", "pi_second")).andExpect(status().isOk());
 
         assertThat(payment("cs_first").getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
-        assertThat(payment("cs_second").getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
+        assertThat(payment("cs_second").getStatus()).isEqualTo(PaymentStatus.REFUNDED);
         assertThat(reservedById()).isEqualTo(buyer.getId());
+        // Only the second deposit went back, and with an idempotency key tied to the payment.
+        verify(checkoutGateway).refund(eq("pi_second"), eq("refund-payment-" + payment("cs_second").getId()));
+        verify(checkoutGateway, never()).refund(eq("pi_first"), anyString());
+    }
+
+    @Test
+    void duplicateDeliveryOfAnAutomaticallyRefundedPayment_doesNotRefundTwice() throws Exception {
+        savePayment("cs_first", PaymentPurpose.RESERVE_ITEM, buyer);
+        savePayment("cs_second", PaymentPurpose.RESERVE_ITEM, secondBuyer);
+        send(eventWithIntent("evt_1", "checkout.session.completed", "cs_first", "paid", "pi_first")).andExpect(status().isOk());
+        String second = eventWithIntent("evt_2", "checkout.session.completed", "cs_second", "paid", "pi_second");
+
+        send(second).andExpect(status().isOk());
+        send(second).andExpect(status().isOk());
+
+        verify(checkoutGateway, times(1)).refund(eq("pi_second"), anyString());
+        assertThat(payment("cs_second").getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+    }
+
+    @Test
+    void refundFailure_returns5xx_andLeavesThePaymentPendingSoStripeRetries() throws Exception {
+        savePayment("cs_first", PaymentPurpose.RESERVE_ITEM, buyer);
+        savePayment("cs_second", PaymentPurpose.RESERVE_ITEM, secondBuyer);
+        send(eventWithIntent("evt_1", "checkout.session.completed", "cs_first", "paid", "pi_first")).andExpect(status().isOk());
+        doThrow(new PaymentProviderException("down", org.springframework.http.HttpStatus.BAD_GATEWAY, null))
+                .when(checkoutGateway).refund(eq("pi_second"), anyString());
+
+        send(eventWithIntent("evt_2", "checkout.session.completed", "cs_second", "paid", "pi_second"))
+                .andExpect(status().is5xxServerError());
+        assertThat(payment("cs_second").getStatus()).isEqualTo(PaymentStatus.PENDING);
+
+        // Stripe redelivers once the refund works.
+        doNothing().when(checkoutGateway).refund(eq("pi_second"), anyString());
+        send(eventWithIntent("evt_2", "checkout.session.completed", "cs_second", "paid", "pi_second")).andExpect(status().isOk());
+        assertThat(payment("cs_second").getStatus()).isEqualTo(PaymentStatus.REFUNDED);
     }
 
     @Test
@@ -189,13 +239,52 @@ class PaymentWebhookTest {
     }
 
     @Test
-    void listingDeletedBeforeWebhook_stillRecordsPayment() throws Exception {
+    void depositForADeletedListing_isRefunded() throws Exception {
         savePayment("cs_reserve", PaymentPurpose.RESERVE_ITEM, buyer);
         listingRepository.deleteById(listing.getId());
 
-        send(event("evt_1", "checkout.session.completed", "cs_reserve", "paid")).andExpect(status().isOk());
+        send(eventWithIntent("evt_1", "checkout.session.completed", "cs_reserve", "paid", "pi_reserve")).andExpect(status().isOk());
 
-        assertThat(payment("cs_reserve").getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
+        assertThat(payment("cs_reserve").getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(checkoutGateway).refund(eq("pi_reserve"), anyString());
+    }
+
+    @Test
+    void featurePaymentForADeletedListing_isRecordedWithoutRefund() throws Exception {
+        savePayment("cs_feature", PaymentPurpose.FEATURE_LISTING, seller);
+        listingRepository.deleteById(listing.getId());
+
+        send(event("evt_1", "checkout.session.completed", "cs_feature", "paid")).andExpect(status().isOk());
+
+        assertThat(payment("cs_feature").getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
+        verify(checkoutGateway, never()).refund(anyString(), anyString());
+    }
+
+    @Test
+    void depositForAnAlreadySoldListing_isRefunded() throws Exception {
+        savePayment("cs_reserve", PaymentPurpose.RESERVE_ITEM, buyer);
+        Listing sold = reloadListing();
+        sold.setStatus(ListingStatus.SOLD);
+        listingRepository.save(sold);
+
+        send(eventWithIntent("evt_1", "checkout.session.completed", "cs_reserve", "paid", "pi_reserve")).andExpect(status().isOk());
+
+        assertThat(payment("cs_reserve").getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(reservedById()).isNull();
+    }
+
+    @Test
+    void refundOfAPaymentWithoutAStoredPaymentIntent_looksItUpFromTheSession() throws Exception {
+        savePayment("cs_first", PaymentPurpose.RESERVE_ITEM, buyer);
+        savePayment("cs_second", PaymentPurpose.RESERVE_ITEM, secondBuyer);
+        send(event("evt_1", "checkout.session.completed", "cs_first", "paid")).andExpect(status().isOk());
+        when(checkoutGateway.paymentIntentIdOf("cs_second")).thenReturn("pi_looked_up");
+
+        // The event carries no payment_intent, as for payments made before refunds existed.
+        send(event("evt_2", "checkout.session.completed", "cs_second", "paid")).andExpect(status().isOk());
+
+        verify(checkoutGateway).refund(eq("pi_looked_up"), anyString());
+        assertThat(payment("cs_second").getStripePaymentIntentId()).isEqualTo("pi_looked_up");
     }
 
     @Test
@@ -275,16 +364,27 @@ class PaymentWebhookTest {
     }
 
     private static String event(String eventId, String type, String sessionId, String paymentStatus) {
-        return event(eventId, type, sessionId, paymentStatus, Stripe.API_VERSION);
+        return event(eventId, type, sessionId, paymentStatus, Stripe.API_VERSION, null);
     }
 
     private static String event(String eventId, String type, String sessionId, String paymentStatus, String apiVersion) {
+        return event(eventId, type, sessionId, paymentStatus, apiVersion, null);
+    }
+
+    /** A checkout event whose session carries the given PaymentIntent id (null: none, as on old payments). */
+    private static String eventWithIntent(String eventId, String type, String sessionId, String paymentStatus, String paymentIntentId) {
+        return event(eventId, type, sessionId, paymentStatus, Stripe.API_VERSION, paymentIntentId);
+    }
+
+    private static String event(String eventId, String type, String sessionId, String paymentStatus, String apiVersion,
+                                String paymentIntentId) {
+        String intent = paymentIntentId == null ? "null" : "\"" + paymentIntentId + "\"";
         return """
                 {"id":"%s","object":"event","api_version":"%s","created":%d,"livemode":false,
                  "pending_webhooks":1,"request":{"id":null,"idempotency_key":null},"type":"%s",
                  "data":{"object":{"id":"%s","object":"checkout.session","mode":"payment",
-                                   "payment_status":"%s","status":"complete"}}}"""
-                .formatted(eventId, apiVersion, Instant.now().getEpochSecond(), type, sessionId, paymentStatus);
+                                   "payment_status":"%s","status":"complete","payment_intent":%s}}}"""
+                .formatted(eventId, apiVersion, Instant.now().getEpochSecond(), type, sessionId, paymentStatus, intent);
     }
 
     private void assertUnchanged(String sessionId) {

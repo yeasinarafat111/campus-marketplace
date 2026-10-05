@@ -1,8 +1,10 @@
 package com.campus.marketplace.controller;
 
+import com.campus.marketplace.dto.AdminOrderResponse;
 import com.campus.marketplace.dto.AdminUserResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.service.AdminService;
+import com.campus.marketplace.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminService adminService;
+    private final OrderService orderService;
 
     @GetMapping("/users")
     public PageResponse<AdminUserResponse> listUsers(@RequestParam(defaultValue = "0") int page,
@@ -35,6 +38,18 @@ public class AdminController {
     @PatchMapping("/users/{id}/reactivate")
     public AdminUserResponse reactivateUser(@PathVariable Long id) {
         return adminService.reactivateUser(id);
+    }
+
+    @GetMapping("/orders")
+    public PageResponse<AdminOrderResponse> orders(@RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "20") int size) {
+        return orderService.all(page, size);
+    }
+
+    /** Records that the seller has been paid out; completes the order. Idempotent. */
+    @PatchMapping("/orders/{id}/payout")
+    public AdminOrderResponse payout(@PathVariable Long id) {
+        return orderService.markPaidOut(id);
     }
 
     @DeleteMapping("/listings/{id}")

@@ -29,6 +29,11 @@ app:
     refresh-token-expiration: 7d
   registration:
     allowed-email-domain: seu.edu.bd
+  frontend-url: http://localhost:5173
+  notifications:
+    async: false
+  scheduling:
+    enabled: false
   mail:
     from: no-reply@seu.edu.bd
   otp:

@@ -26,6 +26,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final ListingRepository listingRepository;
     private final CurrentUserProvider currentUser;
+    private final PaymentService paymentService;
 
     /** All users, newest first. */
     @Transactional(readOnly = true)
@@ -74,11 +75,21 @@ public class AdminService {
         return AdminUserResponse.from(user);
     }
 
-    /** Hard delete, regardless of owner. */
+    /** The payment stays on record when its listing goes (the database nulls the link); mirror that in memory. */
+    private static void detachFromListing(com.campus.marketplace.entity.Payment payment) {
+        if (payment != null) {
+            payment.setListing(null);
+        }
+    }
+
+    /** Hard delete, regardless of owner. A reserved item's deposit is refunded to the buyer first. */
     @Transactional
     public void deleteListing(Long id) {
-        var listing = listingRepository.findById(id)
+        var listing = listingRepository.findForUpdateById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Listing " + id + " not found"));
+        if (listing.isReserved()) {
+            detachFromListing(paymentService.refundDeposit(listing));
+        }
         listingRepository.delete(listing);
         log.info("Admin {} deleted listing {}", currentUser.requireId(), id);
     }

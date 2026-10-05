@@ -76,6 +76,13 @@ public class Payment {
     private String stripeSessionId;
 
     /**
+     * The Stripe PaymentIntent behind the checkout session, needed to refund. Set when the payment succeeds;
+     * null on payments made before refunds existed (looked up from the session when needed).
+     */
+    @Column(length = 255)
+    private String stripePaymentIntentId;
+
+    /**
      * Audit trail for the fee: the listing price (in minor units) and the nominal rate (in basis points,
      * 300 = 3%) the amount was computed from. Null on payments made before fees were price-based.
      */

@@ -6,6 +6,8 @@ import com.campus.marketplace.exception.PaymentProviderException;
 import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
+import com.stripe.param.RefundCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,45 @@ public class StripeCheckoutGateway implements CheckoutGateway {
             // Log Stripe's request id so the failure can be looked up in the Stripe dashboard.
             log.error("Stripe checkout session creation failed (request {}): {}", e.getRequestId(), e.getMessage());
             throw new PaymentProviderException("Payment provider error. Please try again.", HttpStatus.BAD_GATEWAY, e);
+        }
+    }
+
+    @Override
+    public void refund(String paymentIntentId, String idempotencyKey) {
+        requireConfigured();
+        try {
+            stripeClient.v1().refunds().create(
+                    RefundCreateParams.builder().setPaymentIntent(paymentIntentId).build(),
+                    RequestOptions.builder().setIdempotencyKey(idempotencyKey).build());
+            log.info("Refunded Stripe PaymentIntent {}", paymentIntentId);
+        } catch (StripeException e) {
+            if ("charge_already_refunded".equals(e.getCode())) {
+                log.info("PaymentIntent {} was already refunded", paymentIntentId);
+                return;
+            }
+            log.error("Stripe refund of {} failed (request {}): {}", paymentIntentId, e.getRequestId(), e.getMessage());
+            throw new PaymentProviderException("Refund failed. Please try again.", HttpStatus.BAD_GATEWAY, e);
+        }
+    }
+
+    @Override
+    public String paymentIntentIdOf(String checkoutSessionId) {
+        requireConfigured();
+        try {
+            String paymentIntent = stripeClient.v1().checkout().sessions().retrieve(checkoutSessionId).getPaymentIntent();
+            if (paymentIntent == null) {
+                throw new PaymentProviderException("Payment provider error. Please try again.", HttpStatus.BAD_GATEWAY, null);
+            }
+            return paymentIntent;
+        } catch (StripeException e) {
+            log.error("Stripe session lookup {} failed (request {}): {}", checkoutSessionId, e.getRequestId(), e.getMessage());
+            throw new PaymentProviderException("Payment provider error. Please try again.", HttpStatus.BAD_GATEWAY, e);
+        }
+    }
+
+    private void requireConfigured() {
+        if (!stripeProperties.isConfigured()) {
+            throw new PaymentProviderException("Payments are not available right now", HttpStatus.SERVICE_UNAVAILABLE, null);
         }
     }
 
