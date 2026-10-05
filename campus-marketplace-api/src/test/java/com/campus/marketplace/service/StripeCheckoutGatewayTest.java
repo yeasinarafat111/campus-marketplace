@@ -17,9 +17,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 class StripeCheckoutGatewayTest {
 
-    private static final PaymentProperties PAYMENTS = new PaymentProperties("usd", 199, 500,
+    private static final PaymentProperties PAYMENTS = new PaymentProperties("usd",
+            new PaymentProperties.Fee(new java.math.BigDecimal("20.00"), new java.math.BigDecimal("0.03"),
+                    new java.math.BigDecimal("0.05"), 50),
             "http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}",
-            "http://localhost:3000/payments/cancel", java.time.Duration.ofDays(7));
+            "http://localhost:3000/payments/cancel", java.time.Duration.ofDays(7), java.time.Duration.ofHours(48));
 
     private static final CheckoutGateway.CheckoutRequest REQUEST = new CheckoutGateway.CheckoutRequest(
             500, "usd", "Reservation deposit: Lamp", "buyer@seu.edu.bd",
@@ -62,11 +64,5 @@ class StripeCheckoutGatewayTest {
         assertThat(new StripeProperties("sk_live_abc", null).isLiveMode()).isTrue();
         assertThat(new StripeProperties("sk_test_abc", null).isLiveMode()).isFalse();
         assertThat(new StripeProperties(null, null).isConfigured()).isFalse();
-    }
-
-    @Test
-    void paymentProperties_amountByPurpose() {
-        assertThat(PAYMENTS.amountFor(com.campus.marketplace.entity.PaymentPurpose.FEATURE_LISTING)).isEqualTo(199);
-        assertThat(PAYMENTS.amountFor(com.campus.marketplace.entity.PaymentPurpose.RESERVE_ITEM)).isEqualTo(500);
     }
 }

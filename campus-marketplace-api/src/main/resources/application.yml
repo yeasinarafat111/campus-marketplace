@@ -85,9 +85,15 @@ app:
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   payments:
     currency: ${PAYMENT_CURRENCY:usd}
-    # Smallest currency unit (cents for usd). Stripe's minimum charge is USD 0.50.
-    feature-listing-amount: ${PAYMENT_FEATURE_LISTING_AMOUNT:199}
-    reserve-item-amount: ${PAYMENT_RESERVE_ITEM_AMOUNT:500}
+    # Fee for featuring or reserving a listing, computed from its price: low-rate below the threshold,
+    # high-rate from it up, rounded half-up to the cent, never below minimum-cents (Stripe's USD floor is 50).
+    fee:
+      threshold: ${PAYMENT_FEE_THRESHOLD:20.00}
+      low-rate: ${PAYMENT_FEE_LOW_RATE:0.03}
+      high-rate: ${PAYMENT_FEE_HIGH_RATE:0.05}
+      minimum-cents: ${PAYMENT_FEE_MINIMUM_CENTS:50}
+    # How long a paid reservation holds an item before it expires.
+    reservation-duration: ${RESERVATION_DURATION:48h}
     # Frontend pages Stripe redirects to. {CHECKOUT_SESSION_ID} is filled in by Stripe.
     success-url: ${PAYMENT_SUCCESS_URL:http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}}
     cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:3000/payments/cancel}

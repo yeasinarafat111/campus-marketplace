@@ -75,6 +75,14 @@ public class Payment {
     @Column(nullable = false, unique = true)
     private String stripeSessionId;
 
+    /**
+     * Audit trail for the fee: the listing price (in minor units) and the nominal rate (in basis points,
+     * 300 = 3%) the amount was computed from. Null on payments made before fees were price-based.
+     */
+    private Long basisPriceCents;
+
+    private Integer rateBasisPoints;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

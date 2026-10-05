@@ -47,8 +47,12 @@ app:
     webhook-secret: whsec_test_secret
   payments:
     currency: usd
-    feature-listing-amount: 199
-    reserve-item-amount: 500
+    fee:
+      threshold: 20.00
+      low-rate: 0.03
+      high-rate: 0.05
+      minimum-cents: 50
+    reservation-duration: 48h
     success-url: http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}
     cancel-url: http://localhost:3000/payments/cancel
     feature-duration: 7d

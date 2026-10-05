@@ -3,6 +3,7 @@ package com.campus.marketplace.service;
 import com.campus.marketplace.config.PaymentProperties;
 import com.campus.marketplace.dto.CheckoutSessionRequest;
 import com.campus.marketplace.dto.CheckoutSessionResponse;
+import com.campus.marketplace.dto.FeeQuote;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.entity.Payment;
@@ -22,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -31,15 +34,60 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class PaymentService {
 
+    /** Decision D7: paid listings cost at least this much. */
+    static final BigDecimal MIN_PAID_PRICE = new BigDecimal("1.00");
+
     private final PaymentRepository paymentRepository;
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUser;
     private final CheckoutGateway checkoutGateway;
     private final PaymentProperties paymentProperties;
+    private final FeeCalculator feeCalculator;
 
     /**
-     * Creates a Stripe Checkout Session for a fixed, server-side amount and records a PENDING payment.
+     * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
+     * Read-only; nothing is reserved or charged.
+     */
+    @Transactional(readOnly = true)
+    public FeeQuote quote(Long listingId) {
+        Listing listing = listingRepository.findWithOwnerById(listingId)
+                .filter(l -> l.getOwner().isActive())
+                .orElseThrow(() -> new ResourceNotFoundException("Listing " + listingId + " not found"));
+        if (listing.getStatus() != ListingStatus.ACTIVE) {
+            throw new ConflictException("This listing is no longer available");
+        }
+        requireChargeable(listing);
+        BigDecimal price = listing.getPrice();
+        long feeCents = feeCalculator.feeCents(price);
+        return new FeeQuote(
+                feeCents,
+                feeCents,
+                FeeCalculator.toCents(price) - feeCents,
+                paymentProperties.currency(),
+                feeCalculator.rateFor(price),
+                price.setScale(2, RoundingMode.HALF_UP).toPlainString(),
+                paymentProperties.featureDuration().toDays(),
+                paymentProperties.reservationDuration().toHours());
+    }
+
+    /**
+     * Free items (decision D7) have no paid flows, and the balance after the deposit must itself be a
+     * chargeable amount, which holds from the minimum paid price up.
+     */
+    private static void requireChargeable(Listing listing) {
+        BigDecimal price = listing.getPrice();
+        if (price.signum() == 0) {
+            throw new BadRequestException("Free items can't be featured or reserved. Message the owner instead.");
+        }
+        if (price.compareTo(MIN_PAID_PRICE) < 0) {
+            throw new BadRequestException("Items under $1.00 can't be featured or reserved. "
+                    + "Ask the owner to update the price.");
+        }
+    }
+
+    /**
+     * Creates a Stripe Checkout Session for a server-side amount computed from the listing price and records a PENDING payment.
      * <p>
      * Stripe is called before anything is saved and outside a transaction, so a slow Stripe call doesn't hold
      * a database connection. If saving then fails, the unused session simply expires; nothing is charged
@@ -71,7 +119,9 @@ public class PaymentService {
             throw new ConflictException("This listing is already featured");
         }
 
-        long amount = paymentProperties.amountFor(request.purpose());
+        requireChargeable(listing);
+        BigDecimal rate = feeCalculator.rateFor(listing.getPrice());
+        long amount = feeCalculator.feeCents(listing.getPrice());
         String currency = paymentProperties.currency();
         var session = checkoutGateway.createCheckoutSession(new CheckoutGateway.CheckoutRequest(
                 amount,
@@ -91,6 +141,8 @@ public class PaymentService {
                 .purpose(request.purpose())
                 .status(PaymentStatus.PENDING)
                 .stripeSessionId(session.id())
+                .basisPriceCents(FeeCalculator.toCents(listing.getPrice()))
+                .rateBasisPoints(rate.movePointRight(4).intValueExact())
                 .build());
 
         return new CheckoutSessionResponse(payment.getId(), session.id(), session.url(), amount, currency,

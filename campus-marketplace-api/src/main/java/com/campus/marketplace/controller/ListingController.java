@@ -1,11 +1,13 @@
 package com.campus.marketplace.controller;
 
+import com.campus.marketplace.dto.FeeQuote;
 import com.campus.marketplace.dto.ListingRequest;
 import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingService;
+import com.campus.marketplace.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -38,6 +40,7 @@ import java.net.URI;
 public class ListingController {
 
     private final ListingService listingService;
+    private final PaymentService paymentService;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -71,6 +74,12 @@ public class ListingController {
     @GetMapping("/{id}")
     public ListingResponse get(@PathVariable Long id) {
         return listingService.get(id);
+    }
+
+    /** What it would cost the caller to feature or reserve this listing. Needs a login (see SecurityConfig). */
+    @GetMapping("/{id}/fees")
+    public FeeQuote fees(@PathVariable Long id) {
+        return paymentService.quote(id);
     }
 
     /** JSON body; the image, if any, is given as {@code imageUrl}. */
