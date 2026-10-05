@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { parseApiError } from '../api/errors'
 import { createCheckoutSession, type PaymentPurpose } from '../api/payments'
-import { rememberCheckoutListing } from '../lib'
+import { rememberCheckout } from '../lib'
 import Button, { type ButtonProps } from './ui/Button'
 
 interface Props extends Omit<ButtonProps, 'onClick' | 'loading'> {
@@ -26,7 +26,7 @@ export default function CheckoutButton({ listingId, purpose, children, ...button
     try {
       const session = await createCheckoutSession({ listingId, purpose })
       if (!session.url.startsWith('https://')) throw new Error('Unexpected checkout URL')
-      rememberCheckoutListing(listingId)
+      rememberCheckout(listingId, purpose)
       window.location.href = session.url // leave the button busy while the browser navigates
     } catch (e) {
       toast.error(parseApiError(e).message)

@@ -1,15 +1,17 @@
 import { CircleSlash } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import DemoNotice from '../components/DemoNotice'
 import StatePanel from '../components/StatePanel'
 import { buttonClasses } from '../components/ui/buttonClasses'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { recallCheckoutListing } from '../lib'
+import { recallCheckout } from '../lib'
 
 export default function PaymentCancelPage() {
   useDocumentTitle('Payment cancelled')
-  const listingId = recallCheckoutListing()
+  const listingId = recallCheckout()?.listingId
   return (
     <StatePanel
+      note={<DemoNotice />}
       icon={CircleSlash}
       title="Payment cancelled"
       actions={

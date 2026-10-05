@@ -83,7 +83,7 @@ export default function AdminDashboardPage() {
                   <td className={`${td} text-right`}>
                     {u.id !== me?.id &&
                       (u.active ? (
-                        <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'deactivate', user: u })}>
+                        <Button variant="ghost" size="sm" className="text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'deactivate', user: u })}>
                           Deactivate
                         </Button>
                       ) : (
@@ -114,7 +114,7 @@ export default function AdminDashboardPage() {
                   <td className={td}><PriceTag price={l.price} size="sm" className="font-medium" /></td>
                   <td className={td}>{l.owner.fullName}</td>
                   <td className={`${td} text-right`}>
-                    <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
+                    <Button variant="ghost" size="sm" className="text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
                       Delete
                     </Button>
                   </td>

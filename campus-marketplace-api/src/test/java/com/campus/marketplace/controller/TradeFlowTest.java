@@ -84,6 +84,7 @@ class TradeFlowTest {
     @Autowired private OrderRepository orderRepository;
     @Autowired private JwtService jwtService;
     @Autowired private ReservationService reservationService;
+    @Autowired private com.campus.marketplace.service.ReservationExpiryJob expiryJob;
     @MockitoBean private CheckoutGateway checkoutGateway;
     @MockitoBean private MailService mailService;
 
@@ -438,6 +439,18 @@ class TradeFlowTest {
         assertThat(payment(lapsed).getStatus()).isEqualTo(PaymentStatus.SUCCEEDED); // deposit kept (D5)
         verify(checkoutGateway, never()).refund(anyString(), anyString());
         assertThat(reservationService.releaseExpired()).isZero(); // idempotent
+    }
+
+    @Test
+    void theScheduledJob_releasesLapsedReservations_whenCalledTheWayTheSchedulerCallsIt() throws Exception {
+        reserve(lamp, buyer);
+        Listing l = reload(lamp);
+        l.setReservationExpiresAt(Instant.now().minusSeconds(1));
+        listingRepository.save(l);
+
+        expiryJob.sweep(); // no surrounding transaction, as in production
+
+        assertThat(reload(lamp).isReserved()).isFalse();
     }
 
     @Test

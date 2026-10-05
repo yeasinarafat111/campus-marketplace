@@ -1,4 +1,4 @@
-import { LayoutDashboard, List, LogOut, Menu, Plus, Search, User as UserIcon } from 'lucide-react'
+import { LayoutDashboard, List, LogOut, Menu, Plus, Receipt, Search, ShoppingBag, User as UserIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -69,6 +69,12 @@ function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuLink to="/my-listings" icon={<List className="size-4 text-muted" aria-hidden />}>
           My listings
+        </DropdownMenuLink>
+        <DropdownMenuLink to="/purchases" icon={<ShoppingBag className="size-4 text-muted" aria-hidden />}>
+          Purchases
+        </DropdownMenuLink>
+        <DropdownMenuLink to="/sales" icon={<Receipt className="size-4 text-muted" aria-hidden />}>
+          Sales
         </DropdownMenuLink>
         <DropdownMenuLink to="/profile" icon={<UserIcon className="size-4 text-muted" aria-hidden />}>
           Profile
@@ -157,6 +163,8 @@ export default function Header() {
           {isAuthenticated ? (
             <>
               <MobileLink to="/my-listings" onClick={closeNav}>My listings</MobileLink>
+              <MobileLink to="/purchases" onClick={closeNav}>Purchases</MobileLink>
+              <MobileLink to="/sales" onClick={closeNav}>Sales</MobileLink>
               <MobileLink to="/profile" onClick={closeNav}>Profile</MobileLink>
               {user?.role === 'ADMIN' && <MobileLink to="/admin" onClick={closeNav}>Admin</MobileLink>}
             </>

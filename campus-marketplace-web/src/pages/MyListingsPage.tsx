@@ -153,14 +153,14 @@ export default function MyListingsPage() {
                   <Button variant="secondary" size="sm" onClick={() => setPending({ kind: 'sold', listing: l })}>
                     Mark sold
                   </Button>
-                  <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
+                  <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
                     <Trash2 className="size-4" aria-hidden />
                     Delete
                   </Button>
                 </div>
               )}
               {l.status === 'SOLD' && (
-                <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="self-start text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
+                <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="self-start text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
                   <Trash2 className="size-4" aria-hidden />
                   Delete
                 </Button>

@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { getListing, type Listing } from '../api/listings'
+import { type Listing } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
@@ -12,6 +11,7 @@ import PriceTag from '../components/ui/PriceTag'
 import Skeleton from '../components/ui/Skeleton'
 import StatePanel from '../components/StatePanel'
 import { useAuth } from '../hooks/useAuth'
+import { useListing } from '../hooks/useListing'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatCategory, formatMonthYear, timeAgo } from '../lib'
 import NotFoundPage from './NotFoundPage'
@@ -20,10 +20,7 @@ import { isAxiosError } from 'axios'
 export default function ListingDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { data: listing, error, isPending } = useQuery({
-    queryKey: ['listing', id],
-    queryFn: () => getListing(id!),
-  })
+  const { data: listing, error, isPending } = useListing(id)
 
   useDocumentTitle(listing?.title ?? 'Listing')
 
@@ -73,7 +70,7 @@ export default function ListingDetailPage() {
               <div className="mt-5 hidden flex-col gap-2 lg:flex">
                 <ListingActions listing={listing} isOwner={isOwner} block />
               </div>
-              {listing.status === 'ACTIVE' && listing.reserved && !isOwner && (
+              {listing.status === 'ACTIVE' && listing.reserved && !isOwner && !listing.reservedByMe && (
                 <p className="mt-3 text-sm text-muted">Another student has already paid a deposit to hold this item.</p>
               )}
             </div>
@@ -99,23 +96,40 @@ export default function ListingDetailPage() {
 
       <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-3 lg:hidden">
         <PriceTag price={listing.price} size="lg" className="mr-auto" />
-        <ListingActions listing={listing} isOwner={isOwner} />
+        <ListingActions listing={listing} isOwner={isOwner} compact />
       </div>
     </div>
   )
 }
 
-function ListingActions({ listing, isOwner, block = false }: { listing: Listing; isOwner: boolean; block?: boolean }) {
+function ListingActions({ listing, isOwner, block = false, compact = false }: { listing: Listing; isOwner: boolean; block?: boolean; compact?: boolean }) {
   return (
     <>
-      <ListingPaymentActions listing={listing} block={block} />
+      <ListingPaymentActions listing={listing} block={block} compact={compact} />
       {isOwner && listing.status === 'ACTIVE' && (
         <Link to={`/listings/${listing.id}/edit`} className={buttonClasses({ variant: 'secondary', size: 'lg', className: block ? 'w-full' : '' })}>
           Edit
         </Link>
       )}
-      {listing.status === 'SOLD' && <p className="text-sm font-medium text-muted">This item has been sold.</p>}
+      {listing.status === 'SOLD' && !compact && <SoldNote listing={listing} isOwner={isOwner} />}
+      {listing.status === 'SOLD' && compact && <p className="text-sm font-medium text-muted">Sold</p>}
     </>
+  )
+}
+
+/** Shown to the two sides of a finished sale, who may see each other's phone. Everyone else just sees "sold". */
+function SoldNote({ listing, isOwner }: { listing: Listing; isOwner: boolean }) {
+  const other = listing.counterparty
+  return (
+    <div className="rounded-lg bg-surface p-3 text-sm">
+      <p className="font-semibold text-ink">This item has been sold.</p>
+      {other && (
+        <p className="mt-1 text-muted">
+          {isOwner ? 'Buyer' : 'Seller'}: {other.fullName}
+          {other.phone ? <>, <a href={`tel:${other.phone}`} className="font-semibold text-ink underline underline-offset-2">{other.phone}</a></> : ', no phone on file'}
+        </p>
+      )}
+    </div>
   )
 }
 

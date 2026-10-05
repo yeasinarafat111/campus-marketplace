@@ -1,6 +1,6 @@
 import client from './client'
 
-export type PaymentPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM'
+export type PaymentPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE'
 
 export interface CheckoutSession {
   paymentId: number
@@ -11,7 +11,7 @@ export interface CheckoutSession {
   amount: number
   currency: string
   purpose: PaymentPurpose
-  status: 'PENDING' | 'SUCCEEDED' | 'FAILED'
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED'
 }
 
 export const createCheckoutSession = (body: { listingId: number; purpose: PaymentPurpose }) =>

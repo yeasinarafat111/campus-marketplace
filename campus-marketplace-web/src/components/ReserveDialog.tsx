@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FeeQuote } from '../api/payments'
 import { formatCents } from '../lib'
 import CheckoutButton from './CheckoutButton'
+import DemoNotice from './DemoNotice'
 import Button from './ui/Button'
 import Dialog from './ui/Dialog'
 
@@ -52,6 +53,7 @@ export default function ReserveDialog({
         />
         <span>I understand these terms.</span>
       </label>
+      <DemoNotice className="mt-4" />
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
           Cancel

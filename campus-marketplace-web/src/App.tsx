@@ -12,6 +12,7 @@ import ListingDetailPage from './pages/ListingDetailPage'
 import ListingsPage from './pages/ListingsPage'
 import LoginPage from './pages/LoginPage'
 import MyListingsPage from './pages/MyListingsPage'
+import OrdersPage from './pages/OrdersPage'
 import PaymentCancelPage from './pages/PaymentCancelPage'
 import ProfilePage from './pages/ProfilePage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
@@ -42,6 +43,8 @@ export default function App() {
                 <Route path="/listings/:id/edit" element={<CreateEditListingPage />} />
                 <Route path="/my-listings" element={<MyListingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/purchases" element={<OrdersPage kind="purchases" />} />
+                <Route path="/sales" element={<OrdersPage kind="sales" />} />
                 <Route path="/payments/success" element={<PaymentSuccessPage />} />
                 <Route path="/payments/cancel" element={<PaymentCancelPage />} />
               </Route>

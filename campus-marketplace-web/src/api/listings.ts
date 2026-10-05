@@ -17,6 +17,18 @@ export interface Listing {
   featured: boolean
   featuredUntil: string | null
   reserved: boolean
+  /** The caller holds the reservation. Always false for anonymous viewers and in search results. */
+  reservedByMe: boolean
+  /** When the reservation lapses. Only for the two sides of a reservation. */
+  reservationExpiresAt: string | null
+  /** The other side's name and phone: the buyer to the seller, the seller to the buyer. Parties only. */
+  counterparty: Contact | null
+}
+
+export interface Contact {
+  id: number
+  fullName: string
+  phone: string | null
 }
 
 export interface Page<T> {
@@ -80,5 +92,13 @@ export const updateListing = (id: number, input: ListingInput) =>
     .then((r) => r.data)
 
 export const markSold = (id: number) => client.patch<Listing>(`/api/listings/${id}/sold`).then((r) => r.data)
+
+/** Seller: refunds the buyer's deposit and frees the item. */
+export const cancelReservation = (id: number) =>
+  client.post<Listing>(`/api/listings/${id}/reservation/cancel`).then((r) => r.data)
+
+/** Buyer: gives the item up. The deposit is kept. */
+export const releaseReservation = (id: number) =>
+  client.post<Listing>(`/api/listings/${id}/reservation/release`).then((r) => r.data)
 
 export const deleteListing = (id: number) => client.delete(`/api/listings/${id}`)

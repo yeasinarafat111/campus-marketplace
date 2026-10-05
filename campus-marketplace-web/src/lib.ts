@@ -18,25 +18,43 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// The backend's cancel URL can't carry a listing id, so the listing being paid for is remembered
-// here before leaving for Stripe and read back on the /payments/* pages.
-const CHECKOUT_LISTING_KEY = 'campus.checkoutListingId'
+// The backend's cancel URL can't carry a listing id, so what is being paid for is remembered here before
+// leaving for Stripe and read back on the /payments/* pages.
+const CHECKOUT_KEY = 'campus.checkout'
 
-export const rememberCheckoutListing = (id: number) => {
+export type CheckoutPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE'
+
+export const rememberCheckout = (listingId: number, purpose: CheckoutPurpose) => {
   try {
-    sessionStorage.setItem(CHECKOUT_LISTING_KEY, String(id))
+    sessionStorage.setItem(CHECKOUT_KEY, JSON.stringify({ listingId, purpose }))
   } catch {
     // Storage can be unavailable (private mode); the pages fall back to the listings index.
   }
 }
 
-export const recallCheckoutListing = (): string | null => {
+export const recallCheckout = (): { listingId: number; purpose: CheckoutPurpose } | null => {
   try {
-    return sessionStorage.getItem(CHECKOUT_LISTING_KEY)
+    const raw = sessionStorage.getItem(CHECKOUT_KEY)
+    return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
+
+/** "1d 4h", "3h 20m", "12m", or "less than a minute"; "expired" once the time has passed. */
+export function formatRemaining(iso: string, now = Date.now()): string {
+  const minutes = Math.floor((new Date(iso).getTime() - now) / 60_000)
+  if (minutes < 0) return 'expired'
+  if (minutes < 1) return 'less than a minute'
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes % 60}m`
+  return `${minutes}m`
+}
+
+export const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 /** Same rule as the backend's @BangladeshiPhone: 01XXXXXXXXX, 8801… or +8801…, operator digit 3-9. */
 export const isValidBdPhone = (raw: string) => /^(\+?880|0)1[3-9]\d{8}$/.test(raw.replace(/[\s-]/g, ''))

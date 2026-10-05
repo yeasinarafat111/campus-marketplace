@@ -10,7 +10,6 @@ import com.campus.marketplace.repository.ListingRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,16 +87,6 @@ public class ReservationService {
             log.info("Released {} expired reservation(s)", released);
         }
         return released;
-    }
-
-    @Scheduled(fixedDelayString = "${RESERVATION_SWEEP_INTERVAL:5m}", initialDelayString = "${RESERVATION_SWEEP_INITIAL_DELAY:1m}")
-    void sweepExpiredReservations() {
-        try {
-            releaseExpired();
-        } catch (RuntimeException e) {
-            // Never let one failed run stop the schedule; the next run retries.
-            log.error("Reservation expiry sweep failed", e);
-        }
     }
 
     private Listing lock(Long listingId) {

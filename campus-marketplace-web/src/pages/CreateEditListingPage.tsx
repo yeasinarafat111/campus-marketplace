@@ -59,7 +59,7 @@ function ListingForm({ existing }: { existing?: Listing }) {
       toast.success(isEdit ? 'Listing updated' : 'Listing created')
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       queryClient.invalidateQueries({ queryKey: ['my-listings'] })
-      queryClient.setQueryData(['listing', String(saved.id)], saved)
+      queryClient.invalidateQueries({ queryKey: ['listing', String(saved.id)] })
       navigate(`/listings/${saved.id}`)
     },
     onError: (err) => {
