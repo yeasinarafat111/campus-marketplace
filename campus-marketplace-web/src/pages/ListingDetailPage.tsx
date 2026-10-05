@@ -43,7 +43,8 @@ export default function ListingDetailPage() {
   const managingReservation = listing.status === 'ACTIVE' && (listing.reservedByMe || (isOwner && listing.reserved))
 
   return (
-    <div className={managingReservation ? '' : 'pb-20 lg:pb-0'}>
+    // Room under the content for the fixed bar (two rows plus the iPhone home indicator), so it never covers anything.
+    <div className={managingReservation ? '' : 'pb-44 lg:pb-0'}>
       <Link to="/listings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-navy">
         <ArrowLeft className="size-4" aria-hidden />
         Back to browsing
@@ -103,29 +104,45 @@ export default function ListingDetailPage() {
       </div>
 
       {/* The phone's action bar is for the simple cases. When you hold or manage a reservation there are too many
-          choices for a bar (pay online or cash, release, cancel, confirm), so the full panel shows instead. */}
+          choices for a bar (pay online or cash, release, cancel, confirm), so the full panel shows instead.
+          Two rows: price and the secondary action, then the primary button across the full width with its fee
+          hint underneath. */}
       {!managingReservation && (
-        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-3 lg:hidden">
-          <PriceTag price={listing.price} size="lg" className="mr-auto" />
-          <ListingActions listing={listing} isOwner={isOwner} compact />
+        <div data-action-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden [&_a]:whitespace-nowrap [&_button]:whitespace-nowrap">
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <PriceTag price={listing.price} size="lg" />
+            {listing.status === 'SOLD' ? (
+              <span className="text-sm font-semibold text-muted">Sold</span>
+            ) : isOwner ? (
+              listing.status === 'ACTIVE' && (
+                <Link to={`/listings/${listing.id}/edit`} className={buttonClasses({ variant: 'secondary', className: 'h-11 px-5' })}>Edit</Link>
+              )
+            ) : (
+              <MessageSellerButton listing={listing} size="md" className="h-11" />
+            )}
+          </div>
+          {listing.status !== 'SOLD' && (
+            <div className="mt-2">
+              <ListingPaymentActions listing={listing} block compact />
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function ListingActions({ listing, isOwner, block = false, compact = false }: { listing: Listing; isOwner: boolean; block?: boolean; compact?: boolean }) {
+function ListingActions({ listing, isOwner, block = false }: { listing: Listing; isOwner: boolean; block?: boolean }) {
   return (
     <>
-      <ListingPaymentActions listing={listing} block={block} compact={compact} />
-      <MessageSellerButton listing={listing} block={block} size={compact ? 'md' : 'lg'} />
+      <ListingPaymentActions listing={listing} block={block} />
+      <MessageSellerButton listing={listing} block={block} size="lg" />
       {isOwner && listing.status === 'ACTIVE' && (
         <Link to={`/listings/${listing.id}/edit`} className={buttonClasses({ variant: 'secondary', size: 'lg', className: block ? 'w-full' : '' })}>
           Edit
         </Link>
       )}
-      {listing.status === 'SOLD' && !compact && <SoldNote listing={listing} isOwner={isOwner} />}
-      {listing.status === 'SOLD' && compact && <p className="text-sm font-medium text-muted">Sold</p>}
+      {listing.status === 'SOLD' && <SoldNote listing={listing} isOwner={isOwner} />}
     </>
   )
 }

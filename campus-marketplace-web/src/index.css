@@ -52,6 +52,13 @@
   }
 }
 
+/* On phones the listing page has a fixed action bar; keep the footer text clear of it. */
+@media (max-width: 1023px) {
+  body:has([data-action-bar]) footer {
+    padding-bottom: calc(9.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 @layer utilities {
   .skeleton {
     background: linear-gradient(90deg, #eceef1 25%, #f6f7f9 37%, #eceef1 63%);

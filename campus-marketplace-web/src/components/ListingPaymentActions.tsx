@@ -43,9 +43,9 @@ export default function ListingPaymentActions({ listing, size = 'lg', block = fa
   if (listing.status === 'PENDING_PAYMENT') {
     return isOwner ? (
       <div className={`space-y-2 ${width}`}>
-        <p className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
+        {!compact && <p className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
           This listing isn't published yet. Pay the posting fee to put it on the board. It is deleted 24 hours after you created it if it is still unpaid.
-        </p>
+        </p>}
         <PayToPublishButton listing={listing} size={size} className={width} />
       </div>
     ) : null

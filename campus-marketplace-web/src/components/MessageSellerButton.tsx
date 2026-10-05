@@ -10,7 +10,7 @@ import Button from './ui/Button'
 import { buttonClasses } from './ui/buttonClasses'
 
 /** Starts (or reopens) the chat with the seller about this listing. Not shown to the seller themself. */
-export default function MessageSellerButton({ listing, size = 'lg', block = false }: { listing: Listing; size?: 'md' | 'lg'; block?: boolean }) {
+export default function MessageSellerButton({ listing, size = 'lg', block = false, className = '' }: { listing: Listing; size?: 'md' | 'lg'; block?: boolean; className?: string }) {
   const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -20,7 +20,7 @@ export default function MessageSellerButton({ listing, size = 'lg', block = fals
     onError: (e) => toast.error(parseApiError(e).message),
   })
   if (user?.id === listing.owner.id) return null
-  const width = block ? 'w-full' : ''
+  const width = `${block ? 'w-full' : ''} ${className}`.trim()
   if (!isAuthenticated) {
     return (
       <Link to="/login" state={{ from: location }} className={buttonClasses({ variant: 'secondary', size, className: width })}>
