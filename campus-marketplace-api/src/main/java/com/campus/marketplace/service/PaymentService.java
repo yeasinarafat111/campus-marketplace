@@ -26,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -50,6 +51,7 @@ public class PaymentService {
     private final FeeCalculator feeCalculator;
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher events;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
@@ -107,6 +109,9 @@ public class PaymentService {
         Listing listing = listingRepository.findWithPartiesById(request.listingId())
                 .filter(l -> l.getOwner().isActive())
                 .orElseThrow(() -> new ResourceNotFoundException("Listing " + request.listingId() + " not found"));
+        if (request.purpose() == PaymentPurpose.RESERVE_ITEM) {
+            listing = freeIfReservationLapsed(listing);
+        }
 
         if (listing.getStatus() != ListingStatus.ACTIVE) {
             throw new ConflictException("This listing is no longer available");
@@ -160,6 +165,20 @@ public class PaymentService {
 
         return new CheckoutSessionResponse(payment.getId(), session.id(), session.url(), charge.amount(), currency,
                 payment.getPurpose(), payment.getStatus());
+    }
+
+    /**
+     * The scheduled sweep only runs while an instance is awake, so a lapsed reservation can still be on the
+     * listing when someone wants to reserve it. Free it now (the same conditional UPDATE the sweep uses) and
+     * reload, so a stale reservation never blocks a new buyer. Does nothing for live reservations.
+     */
+    private Listing freeIfReservationLapsed(Listing listing) {
+        Instant expiresAt = listing.getReservationExpiresAt();
+        if (!listing.isReserved() || expiresAt == null || expiresAt.isAfter(Instant.now())) {
+            return listing;
+        }
+        transactionTemplate.executeWithoutResult(tx -> listingRepository.releaseExpiredReservations(Instant.now()));
+        return listingRepository.findWithPartiesById(listing.getId()).orElse(listing);
     }
 
     /** What to charge and the numbers it was worked out from, for the audit fields on the payment. */

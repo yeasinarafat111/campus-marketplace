@@ -442,6 +442,25 @@ class TradeFlowTest {
     }
 
     @Test
+    void aLapsedReservation_neverBlocksANewReserver_evenBeforeTheSweepHasRun() throws Exception {
+        reserve(lamp, buyer);
+        Listing l = reload(lamp);
+        l.setReservationExpiresAt(Instant.now().minusSeconds(1));
+        listingRepository.save(l); // lapsed, but no sweep has run yet
+
+        checkout(other, lamp, "RESERVE_ITEM").andExpect(status().isCreated());
+
+        assertThat(reload(lamp).isReserved()).isFalse(); // freed on the way; the new deposit reserves it on payment
+    }
+
+    @Test
+    void aLiveReservation_stillBlocksOthers() throws Exception {
+        reserve(lamp, buyer);
+        checkout(other, lamp, "RESERVE_ITEM").andExpect(status().isConflict());
+        assertThat(reload(lamp).getReservedBy().getId()).isEqualTo(buyer.getId());
+    }
+
+    @Test
     void theScheduledJob_releasesLapsedReservations_whenCalledTheWayTheSchedulerCallsIt() throws Exception {
         reserve(lamp, buyer);
         Listing l = reload(lamp);

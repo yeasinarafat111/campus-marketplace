@@ -354,6 +354,64 @@ and for webhook idempotency on `PURCHASE`.
 
 ---
 
+## Order of work from here (agreed 2026-10-05)
+
+P4 → **P4a** (finish Phase 4: UI, real-Stripe verification, push; then **stop and give the deploy plan**, wait
+for "go", deploy backend, check `/actuator/health`, deploy frontend) → **P3b** → **P4b** → **P4c** → P5 → P6.
+Stripe stays in test mode (no real money). The reserve dialog and the checkout result pages carry the notice
+"Demo mode: payments are simulated. Use test card 4242 4242 4242 4242." After each phase, say whether it is
+safe to deploy again. Commit and push after every finished step.
+
+---
+
+## Phase 3b: Posting fee (new revenue stream)
+
+- When a student creates a listing priced **above $5.00**, they pay a posting fee. Same `FeeCalculator` as D1
+  (3% below $20, otherwise 5%, round half-up, minimum $0.50). Prices of $5.00 or less, including free, post for
+  nothing.
+- `ListingStatus.PENDING_PAYMENT` (additive). A pending listing is hidden from browse, search and other users'
+  detail views. After creating it, the owner goes to Stripe Checkout (`PaymentPurpose.POSTING_FEE`). The webhook
+  sets the listing ACTIVE; idempotent and row-locked like the existing handlers.
+- If checkout is abandoned or fails, the listing stays `PENDING_PAYMENT`. My listings shows it with a
+  "Pay to publish" button. The scheduled job deletes `PENDING_PAYMENT` listings older than 24h.
+- Store `postingFeeBasisCents` on `Listing` (nullable). Once published, the price cannot be raised above the
+  price that was paid for: 409, tell the owner to repost. Existing ACTIVE listings are grandfathered.
+- Config: `PAYMENT_POSTING_FEE_ENABLED` (default true) and `PAYMENT_POSTING_FEE_THRESHOLD` (default 5.00), so it
+  can be switched off for the demo.
+- The create page shows a live quote ("Posting fee: $0.60 (3%), paid after you submit"; "Free" at $5 or less).
+- The startup enum-constraint sync also covers `ListingStatus.PENDING_PAYMENT`, `PaymentPurpose.POSTING_FEE` and
+  `listings_status_check`. It touches only the enum CHECK constraints on `payments` and `listings`.
+- Tests: fee boundaries ($5.00 vs $5.01), webhook idempotency, hidden-until-paid, the price-raise block.
+
+## Phase 4b: Revenue ledger and admin revenue page (after P3b)
+
+- Revenue sources: `POSTING_FEE`, `FEATURE_FEE`, `FORFEITED_DEPOSIT` (a deposit the platform keeps when the buyer
+  releases or the reservation expires). Not revenue: a deposit while held, and purchase money that belongs to
+  sellers (shown as "owed to sellers"). Refunds are subtracted.
+- New additive table `ledger_entries`: id, type, amountCents (signed, refunds negative), currency, paymentId,
+  listingId, userId, occurredAt. Entries are written in the same transaction as the event. Backfill existing
+  succeeded FEATURE_LISTING payments, idempotently.
+- `GET /api/admin/revenue?from&to&groupBy=day|week|month` (totals per source, net total, series) and
+  `GET /api/admin/revenue/entries` (paged).
+- Admin page: date range picker, tiles (net revenue, revenue per source, owed to sellers), a stacked per-day
+  chart by source, and a history table (date, source, listing, user, amount) with CSV export. Note on the page:
+  "before Stripe processing fees".
+- Tests: refunds subtract, a deposit counts only when forfeited, backfill is idempotent, admin-only access.
+
+## Phase 4c: Cash at meetup (after P4b)
+
+- The reserver chooses "Pay online" (the existing Buy flow) or "Pay cash at meetup". The cash choice shows the
+  seller's phone, the meetup spot and the exact cash amount (price minus deposit).
+- Orders get `paymentMethod` ONLINE or CASH. For cash, the seller confirms with "Confirm handover and cash
+  received". That marks the listing SOLD and the order COMPLETED and emails both sides. Only that listing's
+  seller can confirm.
+- The deposit still counts toward the price. For a cash order, "owed to seller" is the deposit only, shown
+  correctly on the admin revenue page. Normal expiry rules apply if the seller never confirms.
+- Tests: only the seller can confirm, no double confirm, the owed-to-seller amount, an expired reservation can't
+  be confirmed.
+
+---
+
 ## Phase 5: Caching with Spring's cache annotations
 
 **Goal:** reduce database load on hot reads using `@Cacheable`, `@CacheEvict`, `@CachePut` and
@@ -590,7 +648,11 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P1** Phone at signup · /me with name · profile + change password · phone banner
 - [x] **P2** Design system · header + user menu · browse · detail · auth pages · my listings · create/edit · screenshots
 - [x] **P3** FeeCalculator + tests · fee quote endpoint · price lock · UI quotes + reserve terms dialog
-- [ ] **P4** Order entity · PURCHASE flow · cancel/release/expiry · race refund · purchases/sales pages · success-page polling
+- [x] **P4** Order entity · PURCHASE flow · cancel/release/expiry · race refund · purchases/sales pages · success-page polling
+- [x] **P4a** Phase 4 finished: purchase/cancel/release/expiry UI · real-Stripe verification · deploy checkpoint
+- [ ] **P3b** Posting fee: PENDING_PAYMENT · POSTING_FEE · hidden until paid · stale cleanup · price-raise block · live quote
+- [ ] **P4b** Revenue ledger · /api/admin/revenue · admin revenue page (chart, CSV)
+- [ ] **P4c** Cash at meetup · paymentMethod · seller confirms handover · owed-to-seller for cash
 - [ ] **P5** Caffeine caches · @Cacheable/@CacheEvict/@Caching · after-commit eviction · cache tests
 - [ ] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [ ] **P7** condition+meetup · multi-photo · saved · seller profile · reports · notifications · ratings · admin KPIs
