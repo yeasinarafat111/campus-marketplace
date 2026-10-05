@@ -1,6 +1,6 @@
 import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { type Listing } from '../api/listings'
+import { MEETUP_LABELS, type Listing } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
@@ -91,6 +91,12 @@ export default function ListingDetailPage() {
           <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-line pt-4 text-sm">
             <dt className="text-muted">Category</dt>
             <dd>{formatCategory(listing.category)}</dd>
+            {listing.meetupSpot && (
+              <>
+                <dt className="text-muted">Meetup spot</dt>
+                <dd>{MEETUP_LABELS[listing.meetupSpot]}</dd>
+              </>
+            )}
           </dl>
         </section>
       </div>

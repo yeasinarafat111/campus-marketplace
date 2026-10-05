@@ -3,7 +3,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CATEGORIES, createListing, getListing, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
+import { CATEGORIES, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import FormField from '../components/FormField'
@@ -19,7 +19,7 @@ import { isAxiosError } from 'axios'
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // matches the backend's multipart limit
 const MAX_DESCRIPTION = 2000
 
-const empty: ListingInput = { title: '', description: '', price: '', category: 'OTHER', imageUrl: '' }
+const empty: ListingInput = { title: '', description: '', price: '', category: 'OTHER', imageUrl: '', meetupSpot: '' }
 
 export default function CreateEditListingPage() {
   const { id } = useParams()
@@ -46,6 +46,7 @@ function ListingForm({ existing }: { existing?: Listing }) {
           price: String(existing.price),
           category: existing.category,
           imageUrl: existing.imageUrl ?? '',
+          meetupSpot: existing.meetupSpot ?? '',
         }
       : empty,
   )
@@ -124,6 +125,15 @@ function ListingForm({ existing }: { existing?: Listing }) {
             </Select>
           </Field>
         </div>
+
+        <Field label="Meetup spot (optional)" hint="Where on campus you prefer to hand the item over." error={fieldErrors.meetupSpot}>
+          <Select value={form.meetupSpot} onChange={set('meetupSpot')}>
+            <option value="">No preference</option>
+            {MEETUP_SPOTS.map((spot) => (
+              <option key={spot} value={spot}>{MEETUP_LABELS[spot]}</option>
+            ))}
+          </Select>
+        </Field>
 
         <Button type="submit" size="lg" loading={save.isPending} className="w-full">
           {isEdit ? 'Save changes' : 'Post listing'}

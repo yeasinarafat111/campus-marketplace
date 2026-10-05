@@ -4,6 +4,16 @@ export const CATEGORIES = ['BOOKS', 'ELECTRONICS', 'FURNITURE', 'CLOTHING', 'STA
 export type Category = (typeof CATEGORIES)[number]
 export type ListingStatus = 'ACTIVE' | 'SOLD'
 
+export const MEETUP_SPOTS = ['MAIN_GATE', 'LIBRARY', 'CAFETERIA', 'PERMANENT_CAMPUS', 'OTHER'] as const
+export type MeetupSpot = (typeof MEETUP_SPOTS)[number]
+export const MEETUP_LABELS: Record<MeetupSpot, string> = {
+  MAIN_GATE: 'Main gate',
+  LIBRARY: 'Library',
+  CAFETERIA: 'Cafeteria',
+  PERMANENT_CAMPUS: 'Permanent campus',
+  OTHER: 'Other (agree in chat)',
+}
+
 export interface Listing {
   id: number
   title: string
@@ -11,6 +21,7 @@ export interface Listing {
   price: number
   category: Category
   imageUrl: string | null
+  meetupSpot: MeetupSpot | null
   status: ListingStatus
   createdAt: string
   owner: { id: number; fullName: string; memberSince: string }
@@ -46,6 +57,8 @@ export interface ListingInput {
   price: string
   category: Category
   imageUrl?: string
+  /** Empty string means "no preference". */
+  meetupSpot: MeetupSpot | ''
 }
 
 export interface SearchParams {
@@ -85,6 +98,7 @@ export function createListing(input: ListingInput, image: File | null) {
   if (input.description) form.append('description', input.description)
   form.append('price', input.price)
   form.append('category', input.category)
+  if (input.meetupSpot) form.append('meetupSpot', input.meetupSpot)
   if (image) form.append('image', image)
   // Overrides the client's JSON default; the browser then adds the multipart boundary.
   return client
@@ -95,7 +109,7 @@ export function createListing(input: ListingInput, image: File | null) {
 // PUT is a full replacement and JSON-only on the backend, so the image can only be changed via imageUrl.
 export const updateListing = (id: number, input: ListingInput) =>
   client
-    .put<Listing>(`/api/listings/${id}`, { ...input, price: Number(input.price) })
+    .put<Listing>(`/api/listings/${id}`, { ...input, price: Number(input.price), meetupSpot: input.meetupSpot || null })
     .then((r) => r.data)
 
 export const markSold = (id: number) => client.patch<Listing>(`/api/listings/${id}/sold`).then((r) => r.data)

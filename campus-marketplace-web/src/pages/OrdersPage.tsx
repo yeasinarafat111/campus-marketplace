@@ -1,18 +1,24 @@
-import { useQuery } from '@tanstack/react-query'
-import { Phone, Receipt } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MapPin, Phone, Receipt } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
-import { getOrders, type Order, type OrderKind } from '../api/orders'
+import { MEETUP_LABELS } from '../api/listings'
+import { confirmReceipt, getOrders, reportProblem, type Order, type OrderKind } from '../api/orders'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import Pagination from '../components/Pagination'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import Dialog, { ConfirmDialog } from '../components/ui/Dialog'
+import { Textarea } from '../components/ui/Input'
+import Field from '../components/ui/Field'
 import { buttonClasses } from '../components/ui/buttonClasses'
 import EmptyState from '../components/ui/EmptyState'
 import ImageWithFallback from '../components/ui/ImageWithFallback'
 import Skeleton from '../components/ui/Skeleton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { formatCents, formatDate } from '../lib'
+import { formatCents, formatDate, formatDateTime } from '../lib'
 
 const COPY: Record<OrderKind, { title: string; empty: string; emptyHint: string; other: string; money: string }> = {
   purchases: {
@@ -93,6 +99,12 @@ function OrderCard({ order, kind }: { order: Order; kind: OrderKind }) {
               <span className="text-muted">, no phone on file</span>
             )}
           </p>
+          {order.meetupSpot && (
+            <p className="mt-1 flex items-center gap-x-1.5 text-sm">
+              <MapPin className="size-3.5 text-muted" aria-hidden />
+              Meetup spot: {MEETUP_LABELS[order.meetupSpot]}
+            </p>
+          )}
         </div>
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-3 rounded-lg bg-surface p-3 text-sm">
@@ -102,10 +114,79 @@ function OrderCard({ order, kind }: { order: Order; kind: OrderKind }) {
       </dl>
       <p className="mt-2 text-xs text-muted">
         {copy.money} {cents(order.itemPriceCents)} in total
-        {kind === 'sales' && order.payoutStatus === 'PENDING' ? ' (payout pending)' : ''}.
+        {kind === 'sales' && order.status === 'COMPLETED' && order.payoutStatus === 'PENDING' ? ' (payout pending)' : ''}.
       </p>
+      <Progress order={order} kind={kind} />
     </li>
   )
+}
+
+/** What happens next on this order, and (for the buyer) the buttons to confirm receipt or report a problem. */
+function Progress({ order, kind }: { order: Order; kind: OrderKind }) {
+  const queryClient = useQueryClient()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [reasonError, setReasonError] = useState('')
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['orders'] })
+  const confirm = useMutation({
+    mutationFn: () => confirmReceipt(order.id),
+    onSuccess: () => { toast.success('Thanks, order complete'); setConfirmOpen(false); refresh() },
+    onError: (e) => { toast.error(parseApiError(e).message); setConfirmOpen(false) },
+  })
+  const report = useMutation({
+    mutationFn: () => reportProblem(order.id, reason.trim()),
+    onSuccess: () => { toast.success('Problem reported', { description: 'An admin will look into it.' }); setReportOpen(false); setReason(''); refresh() },
+    onError: (e) => { const p = parseApiError(e); setReasonError(p.fieldErrors.reason ?? p.message) },
+  })
+
+  if (order.status === 'CANCELLED') return <Note tone="danger">This order was cancelled.</Note>
+  if (order.status === 'COMPLETED') {
+    return <Note tone="success">Completed{order.completedAt ? ` on ${formatDate(order.completedAt)}` : ''}.</Note>
+  }
+  if (order.problemReportedAt) {
+    return <Note tone="warning">Problem reported on {formatDate(order.problemReportedAt)}. An admin is looking into it, and nothing completes automatically meanwhile.</Note>
+  }
+  if (kind === 'sales') {
+    return <Note tone="neutral">Waiting for the buyer to confirm they received it{order.autoCompleteAt ? `. Completes automatically on ${formatDateTime(order.autoCompleteAt)} otherwise` : ''}.</Note>
+  }
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="text-sm text-muted">
+        Got the item? Confirm it. {order.autoCompleteAt && <>Otherwise this completes automatically on {formatDateTime(order.autoCompleteAt)}, unless you report a problem.</>}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => setConfirmOpen(true)}>Confirm I received it</Button>
+        <Button size="sm" variant="secondary" onClick={() => { setReasonError(''); setReportOpen(true) }}>Report a problem</Button>
+      </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={(open) => !open && !confirm.isPending && setConfirmOpen(false)}
+        title="Confirm you received it?"
+        description="This completes the order and releases the seller's payment. You can't undo it."
+        confirmLabel="Yes, I received it"
+        loading={confirm.isPending}
+        onConfirm={() => confirm.mutate()}
+      />
+      <Dialog open={reportOpen} onOpenChange={setReportOpen} title="Report a problem" description="Describe what went wrong. The order is put on hold until an admin reviews it.">
+        <form onSubmit={(e) => { e.preventDefault(); setReasonError(''); report.mutate() }} className="space-y-4">
+          <Field label="What happened?" error={reasonError}>
+            <Textarea rows={4} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setReportOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="danger" loading={report.isPending} disabled={!reason.trim()}>Send report</Button>
+          </div>
+        </form>
+      </Dialog>
+    </div>
+  )
+}
+
+function Note({ tone, children }: { tone: 'success' | 'warning' | 'danger' | 'neutral'; children: React.ReactNode }) {
+  const styles = { success: 'bg-success-soft text-success', warning: 'bg-warning-soft text-warning', danger: 'bg-danger-soft text-danger', neutral: 'bg-surface text-muted' }[tone]
+  return <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${styles}`}>{children}</p>
 }
 
 function Amount({ label, value }: { label: string; value: string }) {
@@ -119,8 +200,12 @@ function Amount({ label, value }: { label: string; value: string }) {
 
 function StatusBadge({ order, kind }: { order: Order; kind: OrderKind }) {
   if (order.status === 'CANCELLED') return <Badge tone="danger">Cancelled</Badge>
+  if (order.status === 'PAID') {
+    if (order.problemReportedAt) return <Badge tone="warning">Problem reported</Badge>
+    return <Badge tone="neutral">{kind === 'purchases' ? 'Awaiting your confirmation' : 'Awaiting buyer'}</Badge>
+  }
   if (kind === 'sales') {
     return order.payoutStatus === 'PAID_OUT' ? <Badge tone="success">Paid out</Badge> : <Badge tone="warning">Payout pending</Badge>
   }
-  return <Badge tone="success">Paid</Badge>
+  return <Badge tone="success">Completed</Badge>
 }
