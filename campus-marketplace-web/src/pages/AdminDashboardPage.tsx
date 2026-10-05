@@ -66,7 +66,7 @@ export default function AdminDashboardPage() {
 
       <section aria-labelledby="users-heading">
         <h2 id="users-heading" className="mb-3 text-lg font-bold text-navy">Users</h2>
-        <div className="overflow-x-auto rounded-xl border border-line">
+        <div className="relative overflow-x-auto rounded-xl border border-line">
           <table className="min-w-full divide-y divide-line">
             <thead className="bg-surface">
               <tr><th className={th}>Name</th><th className={th}>Email</th><th className={th}>Role</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th></tr>
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
 
       <section aria-labelledby="listings-heading">
         <h2 id="listings-heading" className="mb-3 text-lg font-bold text-navy">Listings</h2>
-        <div className="overflow-x-auto rounded-xl border border-line">
+        <div className="relative overflow-x-auto rounded-xl border border-line">
           <table className="min-w-full divide-y divide-line">
             <thead className="bg-surface">
               <tr><th className={th}>Title</th><th className={th}>Price</th><th className={th}>Seller</th><th className={th}><span className="sr-only">Actions</span></th></tr>

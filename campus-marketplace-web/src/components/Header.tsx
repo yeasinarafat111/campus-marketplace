@@ -119,10 +119,12 @@ export default function Header() {
           <Search className="size-5" aria-hidden />
         </button>
 
-        <Link to="/listings/new" className={buttonClasses({ variant: 'secondary', className: 'hidden border-transparent sm:inline-flex' })}>
-          <Plus className="size-4" aria-hidden />
-          Sell
-        </Link>
+        <div className="hidden sm:block">
+          <Link to="/listings/new" className={buttonClasses({ variant: 'secondary', className: 'border-transparent' })}>
+            <Plus className="size-4" aria-hidden />
+            Sell
+          </Link>
+        </div>
 
         {isAuthenticated ? (
           <UserMenu />
@@ -132,9 +134,11 @@ export default function Header() {
               <Link to="/login" className={buttonClasses({ variant: 'ghost', className: 'text-white hover:bg-white/10' })}>
                 Log in
               </Link>
-              <Link to="/signup" className={buttonClasses({ variant: 'secondary', className: 'hidden border-transparent sm:inline-flex' })}>
-                Sign up
-              </Link>
+              <div className="hidden sm:block">
+                <Link to="/signup" className={buttonClasses({ variant: 'secondary', className: 'border-transparent' })}>
+                  Sign up
+                </Link>
+              </div>
             </div>
           )
         )}

@@ -85,6 +85,7 @@ export default function ListingsPage() {
 
   return (
     <>
+      <h1 className="sr-only">Browse listings</h1>
       <CategoryChips selected={category} onSelect={(c) => update({ category: c })} />
 
       {showFeaturedRow && featuredRow.length > 0 && (
@@ -105,9 +106,9 @@ export default function ListingsPage() {
       <section aria-labelledby="results-heading" className="mt-8">
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
-            <h1 id="results-heading" className="truncate text-xl font-bold text-navy">
+            <h2 id="results-heading" className="truncate text-xl font-bold text-navy">
               {seller ? `Listings from ${sellerName ?? 'this seller'}` : q ? `Results for “${q}”` : category ? formatCategory(category) : 'Fresh listings'}
-            </h1>
+            </h2>
             <p className="text-sm text-muted" aria-live="polite">
               {results.data
                 ? `${results.data.totalElements} ${results.data.totalElements === 1 ? 'listing' : 'listings'}`

@@ -34,6 +34,8 @@
 @layer base {
   body {
     @apply bg-white font-sans text-ink antialiased;
+    /* Plus Jakarta Sans has narrow word spaces; a touch more keeps running text legible. */
+    word-spacing: 0.06em;
   }
   :focus-visible {
     outline: 2px solid var(--color-navy);
