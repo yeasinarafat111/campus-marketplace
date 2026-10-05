@@ -477,6 +477,58 @@ class ListingControllerTest {
                 .andExpect(jsonPath("$.price").value(0));
     }
 
+    // ---- meetup spot ----
+
+    @Test
+    void meetupSpot_isOptional_validated_andShownOnTheListing() throws Exception {
+        String created = mockMvc.perform(json(post("/api/listings"), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":12,\"category\":\"OTHER\",\"meetupSpot\":\"LIBRARY\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.meetupSpot").value("LIBRARY"))
+                .andReturn().getResponse().getContentAsString();
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(created).get("id").asLong();
+        mockMvc.perform(get("/api/listings/{id}", id)).andExpect(jsonPath("$.meetupSpot").value("LIBRARY"));
+
+        for (String spot : new String[] {"MAIN_GATE", "LIBRARY", "CAFETERIA", "PERMANENT_CAMPUS", "OTHER"}) {
+            mockMvc.perform(json(post("/api/listings"), aliceToken,
+                            "{\"title\":\"Item\",\"price\":12,\"category\":\"OTHER\",\"meetupSpot\":\"" + spot + "\"}"))
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.meetupSpot").value(spot));
+        }
+        // Left out, or null: not stated.
+        mockMvc.perform(json(post("/api/listings"), aliceToken, "{\"title\":\"Item\",\"price\":12,\"category\":\"OTHER\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.meetupSpot").isEmpty());
+        mockMvc.perform(json(post("/api/listings"), aliceToken,
+                        "{\"title\":\"Item\",\"price\":12,\"category\":\"OTHER\",\"meetupSpot\":null}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.meetupSpot").isEmpty());
+        // Anything that isn't one of the five is refused.
+        for (String bad : new String[] {"MOON", "library", "\"\""}) {
+            String value = bad.startsWith("\"") ? bad : "\"" + bad + "\"";
+            mockMvc.perform(json(post("/api/listings"), aliceToken,
+                            "{\"title\":\"Item\",\"price\":12,\"category\":\"OTHER\",\"meetupSpot\":" + value + "}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void meetupSpot_canBeChangedAndClearedOnEdit_andIsSetFromTheMultipartForm() throws Exception {
+        Listing listing = saveListing("Lamp", Category.OTHER, "20.00", ListingStatus.ACTIVE, alice);
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":20,\"category\":\"OTHER\",\"meetupSpot\":\"CAFETERIA\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.meetupSpot").value("CAFETERIA"));
+        // PUT replaces everything, so leaving it out clears it.
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":20,\"category\":\"OTHER\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.meetupSpot").isEmpty());
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":20,\"category\":\"OTHER\",\"meetupSpot\":\"NOWHERE\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(auth(multipartListing("Form lamp", "12", "OTHER").param("meetupSpot", "MAIN_GATE"), aliceToken))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.meetupSpot").value("MAIN_GATE"));
+        mockMvc.perform(auth(multipartListing("Form lamp", "12", "OTHER").param("meetupSpot", "NOWHERE"), aliceToken))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.meetupSpot").value("Invalid value"));
+    }
+
     @Test
     void update_byOtherUser_orAdmin_returns403() throws Exception {
         Listing listing = saveListing("Mine", Category.OTHER, "100", ListingStatus.ACTIVE, alice);

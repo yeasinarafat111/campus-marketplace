@@ -273,6 +273,7 @@ public class ListingService {
         listing.setPrice(request.price());
         listing.setCategory(request.category());
         listing.setImageUrl(request.imageUrl());
+        listing.setMeetupSpot(request.meetupSpot());
     }
 
     private static void validatePaging(int page, int size) {

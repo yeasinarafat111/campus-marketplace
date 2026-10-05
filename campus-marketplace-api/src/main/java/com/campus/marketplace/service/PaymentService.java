@@ -342,6 +342,7 @@ public class PaymentService {
                 .depositCents(deposit)
                 .balanceCents(payment.getAmount())
                 .currency(payment.getCurrency())
+                .meetupSpot(listing.getMeetupSpot())
                 .payment(payment)
                 .build());
         log.info("Listing {} sold to user {} (payment {})", listing.getId(), buyer.getId(), payment.getId());

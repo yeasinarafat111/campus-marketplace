@@ -258,6 +258,19 @@ class TradeFlowTest {
     }
 
     @Test
+    void purchase_copiesTheListingsMeetupSpotOntoTheOrder() throws Exception {
+        Listing l = reload(lamp);
+        l.setMeetupSpot(com.campus.marketplace.entity.MeetupSpot.CAFETERIA);
+        listingRepository.save(l);
+        reserve(lamp, buyer);
+        buy(lamp, buyer);
+
+        assertThat(orderRepository.findAll()).singleElement()
+                .satisfies(o -> assertThat(o.getMeetupSpot()).isEqualTo(com.campus.marketplace.entity.MeetupSpot.CAFETERIA));
+        mockMvc.perform(as(get("/api/orders/purchases"), buyer)).andExpect(jsonPath("$.content[0].meetupSpot").value("CAFETERIA"));
+    }
+
+    @Test
     void purchaseWebhook_isIdempotent() throws Exception {
         reserve(lamp, buyer);
         String session = checkoutSession(buyer, lamp, "PURCHASE");
@@ -630,6 +643,12 @@ class TradeFlowTest {
                 .andExpect(jsonPath("$.content[0].buyer.email").value("buyer@seu.edu.bd"))
                 .andExpect(jsonPath("$.content[0].seller.email").value("seller@seu.edu.bd"))
                 .andExpect(jsonPath("$.content[0].payoutStatus").value("PENDING"));
+
+        // Not while the order is still waiting for the buyer.
+        mockMvc.perform(as(patch("/api/admin/orders/{id}/payout", order.getId()), admin))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Only a completed order can be paid out"));
+        mockMvc.perform(as(post("/api/orders/{id}/confirm", order.getId()), buyer)).andExpect(status().isOk());
 
         for (int i = 0; i < 2; i++) { // idempotent
             mockMvc.perform(as(patch("/api/admin/orders/{id}/payout", order.getId()), admin))

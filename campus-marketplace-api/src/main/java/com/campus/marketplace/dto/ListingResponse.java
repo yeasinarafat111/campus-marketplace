@@ -3,6 +3,7 @@ package com.campus.marketplace.dto;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
+import com.campus.marketplace.entity.MeetupSpot;
 import com.campus.marketplace.entity.User;
 
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ public record ListingResponse(
         BigDecimal price,
         Category category,
         String imageUrl,
+        MeetupSpot meetupSpot,
         ListingStatus status,
         Instant createdAt,
         Owner owner,
@@ -85,6 +87,7 @@ public record ListingResponse(
                 listing.getPrice(),
                 listing.getCategory(),
                 listing.getImageUrl(),
+                listing.getMeetupSpot(),
                 listing.getStatus(),
                 listing.getCreatedAt(),
                 new Owner(owner.getId(), owner.getFullName(), owner.getCreatedAt()),

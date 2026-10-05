@@ -30,6 +30,8 @@ app:
   registration:
     allowed-email-domain: seu.edu.bd
   frontend-url: http://localhost:5173
+  orders:
+    auto-complete-after: 72h
   cache:
     enabled: false   # most tests change data directly; the cache tests switch it on
   notifications:

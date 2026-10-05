@@ -69,6 +69,9 @@ app:
   registration:
     # Only emails at exactly this domain may sign up (no subdomains).
     allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:seu.edu.bd}
+  orders:
+    # A PAID order completes by itself this long after payment unless the buyer reported a problem.
+    auto-complete-after: ${ORDER_AUTO_COMPLETE_AFTER:72h}
   # In-process caches (see CacheConfig). Set false to turn caching off.
   cache:
     enabled: ${APP_CACHE_ENABLED:true}

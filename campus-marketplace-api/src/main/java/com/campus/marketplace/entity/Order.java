@@ -84,6 +84,11 @@ public class Order {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    /** Copied from the listing at the time of sale, so it survives edits and deletion. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private MeetupSpot meetupSpot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
@@ -104,4 +109,14 @@ public class Order {
     private Instant createdAt;
 
     private Instant completedAt;
+
+    /** Set when the buyer reports a problem. The order is then frozen until an admin resolves it. */
+    private Instant problemReportedAt;
+
+    @Column(length = 1000)
+    private String problemReason;
+
+    public boolean hasOpenProblem() {
+        return problemReportedAt != null && status == OrderStatus.PAID;
+    }
 }

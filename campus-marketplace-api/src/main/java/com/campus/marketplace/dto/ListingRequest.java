@@ -1,6 +1,7 @@
 package com.campus.marketplace.dto;
 
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.MeetupSpot;
 import com.campus.marketplace.validation.ValidListingPrice;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -35,7 +36,10 @@ public record ListingRequest(
         // Only http(s), so a stored URL can't be a javascript: or data: payload when rendered.
         @Size(max = 500, message = "Image URL must be at most 500 characters")
         @Pattern(regexp = "^https?://\\S+$", message = "Image URL must be an http:// or https:// URL")
-        String imageUrl
+        String imageUrl,
+
+        // Optional: where on campus the seller prefers to hand the item over.
+        MeetupSpot meetupSpot
 ) {
     public ListingRequest {
         title = title == null ? null : title.trim();

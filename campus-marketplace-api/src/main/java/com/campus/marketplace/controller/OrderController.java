@@ -2,9 +2,14 @@ package com.campus.marketplace.controller;
 
 import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
+import com.campus.marketplace.dto.ReportProblemRequest;
 import com.campus.marketplace.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +26,18 @@ public class OrderController {
     public PageResponse<OrderResponse> purchases(@RequestParam(defaultValue = "0") int page,
                                                  @RequestParam(defaultValue = "20") int size) {
         return orderService.purchases(page, size);
+    }
+
+    /** Buyer: "I received it". Completes the order. */
+    @PostMapping("/{id}/confirm")
+    public OrderResponse confirm(@PathVariable Long id) {
+        return orderService.confirmReceipt(id);
+    }
+
+    /** Buyer: report a problem. Freezes the order until an admin resolves it. */
+    @PostMapping("/{id}/report")
+    public OrderResponse report(@PathVariable Long id, @Valid @RequestBody ReportProblemRequest request) {
+        return orderService.reportProblem(id, request.reason());
     }
 
     @GetMapping("/sales")

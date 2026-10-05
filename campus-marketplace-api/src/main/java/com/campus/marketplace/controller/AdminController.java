@@ -41,12 +41,19 @@ public class AdminController {
     }
 
     @GetMapping("/orders")
-    public PageResponse<AdminOrderResponse> orders(@RequestParam(defaultValue = "0") int page,
+    public PageResponse<AdminOrderResponse> orders(@RequestParam(defaultValue = "false") boolean reported,
+                                                   @RequestParam(defaultValue = "0") int page,
                                                    @RequestParam(defaultValue = "20") int size) {
-        return orderService.all(page, size);
+        return orderService.all(reported, page, size);
     }
 
-    /** Records that the seller has been paid out; completes the order. Idempotent. */
+    /** Closes a buyer's problem report: COMPLETE (the item arrived) or CANCEL (the sale is called off). */
+    @PatchMapping("/orders/{id}/resolve")
+    public AdminOrderResponse resolve(@PathVariable Long id, @RequestParam OrderService.Resolution outcome) {
+        return orderService.resolveProblem(id, outcome);
+    }
+
+    /** Records that the seller has been paid out. Only for a COMPLETED order. Idempotent. */
     @PatchMapping("/orders/{id}/payout")
     public AdminOrderResponse payout(@PathVariable Long id) {
         return orderService.markPaidOut(id);

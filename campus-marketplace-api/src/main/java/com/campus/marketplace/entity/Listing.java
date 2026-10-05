@@ -60,6 +60,11 @@ public class Listing {
     @Column(length = 500)
     private String imageUrl;
 
+    /** Where the seller prefers to meet. Optional; null means "not stated". */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private MeetupSpot meetupSpot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
