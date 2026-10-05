@@ -6,7 +6,10 @@ import com.campus.marketplace.dto.CurrentUserResponse;
 import com.campus.marketplace.dto.UpdateProfileRequest;
 import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.PageResponse;
+import com.campus.marketplace.dto.SellerProfileResponse;
 import com.campus.marketplace.service.SavedListingService;
+import com.campus.marketplace.service.SellerProfileService;
+import org.springframework.web.bind.annotation.PathVariable;
 import com.campus.marketplace.service.UserService;
 import java.util.List;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,6 +29,7 @@ public class UserController {
 
     private final UserService userService;
     private final SavedListingService savedListingService;
+    private final SellerProfileService sellerProfileService;
 
     /** The caller's own profile (including phone), so the SPA can show who is logged in. */
     @GetMapping("/me")
@@ -36,6 +40,12 @@ public class UserController {
     @PatchMapping("/me")
     public CurrentUserResponse updateMe(@Valid @RequestBody UpdateProfileRequest request) {
         return userService.updateProfile(request);
+    }
+
+    /** Public: name, member since and counts. Never the email or phone. */
+    @GetMapping("/{id}/profile")
+    public SellerProfileResponse profile(@PathVariable Long id) {
+        return sellerProfileService.get(id);
     }
 
     /** The listings the caller saved, newest first. */

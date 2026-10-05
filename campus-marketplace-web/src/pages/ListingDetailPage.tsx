@@ -174,15 +174,15 @@ function SellerCard({ listing }: { listing: Listing }) {
   return (
     <section aria-labelledby="seller-heading" className="rounded-xl border border-line bg-white p-5">
       <h2 id="seller-heading" className="sr-only">Seller</h2>
-      <div className="flex items-center gap-3">
+      <Link to={`/users/${listing.owner.id}`} className="flex items-center gap-3 rounded-lg hover:bg-surface">
         <Avatar name={listing.owner.fullName} size="lg" />
         <div className="min-w-0">
           <p className="truncate font-semibold text-ink">{listing.owner.fullName}</p>
           <p className="text-sm text-muted">Member since {formatMonthYear(listing.owner.memberSince)}</p>
         </div>
-      </div>
-      <Link to={`/listings?seller=${listing.owner.id}`} className="mt-4 inline-block text-sm font-semibold text-navy underline-offset-2 hover:underline">
-        See their other listings
+      </Link>
+      <Link to={`/users/${listing.owner.id}`} className="mt-4 inline-block text-sm font-semibold text-navy underline-offset-2 hover:underline">
+        View profile and their listings
       </Link>
     </section>
   )

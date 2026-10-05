@@ -17,6 +17,7 @@ const ListingDetailPage = lazy(() => import('./pages/ListingDetailPage'))
 const ListingsPage = lazy(() => import('./pages/ListingsPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const MyListingsPage = lazy(() => import('./pages/MyListingsPage'))
+const SellerProfilePage = lazy(() => import('./pages/SellerProfilePage'))
 const SavedPage = lazy(() => import('./pages/SavedPage'))
 const OrdersPage = lazy(() => import('./pages/OrdersPage'))
 const PaymentCancelPage = lazy(() => import('./pages/PaymentCancelPage'))
@@ -55,6 +56,7 @@ export default function App() {
               {/* Browsing is public on the backend. */}
               <Route path="/listings" element={<ListingsPage />} />
               <Route path="/listings/:id" element={<ListingDetailPage />} />
+              <Route path="/users/:id" element={<SellerProfilePage />} />
 
               <Route element={<ProtectedRoute />}>
                 <Route path="/listings/new" element={<CreateEditListingPage />} />

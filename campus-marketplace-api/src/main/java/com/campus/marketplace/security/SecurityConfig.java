@@ -53,6 +53,8 @@ public class SecurityConfig {
                         // Must come before the public rule below: "/api/listings/*" would also match "mine".
                         .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/listings", "/api/listings/*").permitAll()
+                        // A seller's public page. Narrow on purpose: "/api/users/*" would also open /api/users/me.
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/profile").permitAll()
                         // Called by Stripe, not a logged-in user. Authenticity comes from the Stripe-Signature
                         // check in StripeWebhookService instead of a JWT.
                         .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()

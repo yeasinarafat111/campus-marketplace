@@ -181,6 +181,19 @@ export const confirmCashHandover = (id: number) => client.post(`/api/listings/${
 
 export const deleteListing = (id: number) => client.delete(`/api/listings/${id}`)
 
+export interface SellerProfile {
+  id: number
+  fullName: string
+  memberSince: string
+  activeListings: number
+  itemsSold: number
+  averageRating: number | null
+  ratingCount: number
+}
+
+export const getSellerProfile = (id: string | number) =>
+  client.get<SellerProfile>(`/api/users/${id}/profile`).then((r) => r.data)
+
 export const saveListing = (id: number) => client.post(`/api/listings/${id}/save`).then(() => undefined)
 export const unsaveListing = (id: number) => client.delete(`/api/listings/${id}/save`).then(() => undefined)
 export const getSavedIds = () => client.get<number[]>('/api/users/me/saved/ids').then((r) => r.data)
