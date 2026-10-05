@@ -653,7 +653,7 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [ ] **P3b** Posting fee: PENDING_PAYMENT · POSTING_FEE · hidden until paid · stale cleanup · price-raise block · live quote
 - [ ] **P4b** Revenue ledger · /api/admin/revenue · admin revenue page (chart, CSV)
 - [ ] **P4c** Cash at meetup · paymentMethod · seller confirms handover · owed-to-seller for cash
-- [ ] **P5** Caffeine caches · @Cacheable/@CacheEvict/@Caching · after-commit eviction · cache tests
+- [x] **P5** Caffeine caches · @Cacheable/@CacheEvict/@Caching · after-commit eviction · cache tests
 - [ ] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [ ] **P7** condition+meetup · multi-photo · saved · seller profile · reports · notifications · ratings · admin KPIs
 - [ ] **P8** Showcase seed data · DEMO.md · min-instances plan · (Flyway · rate limits · headers · logging · docs)

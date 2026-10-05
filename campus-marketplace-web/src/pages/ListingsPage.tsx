@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { PackageSearch, SlidersHorizontal, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CATEGORIES, searchListings, type Category, type SearchParams } from '../api/listings'
+import { CATEGORIES, getCategoryCounts, getFeatured, searchListings, type Category, type SearchParams } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import { CATEGORY_ICONS } from '../components/categoryIcons'
@@ -63,10 +63,11 @@ export default function ListingsPage() {
   const showFeaturedRow = !hasFilters && sortKey === 'recommended' && page === 0
   const featured = useQuery({
     queryKey: ['listings', 'featured'],
-    queryFn: () => searchListings({ featured: true, size: 10 }),
+    queryFn: getFeatured,
     enabled: showFeaturedRow,
   })
-  const featuredRow = showFeaturedRow ? featured.data?.content ?? [] : []
+  const featuredRow = showFeaturedRow ? featured.data ?? [] : []
+  const counts = useQuery({ queryKey: ['listings', 'category-counts'], queryFn: getCategoryCounts })
   // The default order already puts featured listings first, so don't repeat them under the row.
   const gridItems =
     featuredRow.length > 0 ? results.data?.content.filter((l) => !l.featured) : results.data?.content
@@ -86,7 +87,7 @@ export default function ListingsPage() {
   return (
     <>
       <h1 className="sr-only">Browse listings</h1>
-      <CategoryChips selected={category} onSelect={(c) => update({ category: c })} />
+      <CategoryChips selected={category} counts={counts.data} onSelect={(c) => update({ category: c })} />
 
       {showFeaturedRow && featuredRow.length > 0 && (
         <section aria-labelledby="featured-heading" className="mt-6">
@@ -213,7 +214,7 @@ export default function ListingsPage() {
   )
 }
 
-function CategoryChips({ selected, onSelect }: { selected: string; onSelect: (category: string) => void }) {
+function CategoryChips({ selected, counts, onSelect }: { selected: string; counts?: Record<Category, number>; onSelect: (category: string) => void }) {
   const chip = (active: boolean) =>
     cx(
       'flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-150',
@@ -234,6 +235,7 @@ function CategoryChips({ selected, onSelect }: { selected: string; onSelect: (ca
               <button type="button" onClick={() => onSelect(c)} aria-pressed={selected === c} className={chip(selected === c)}>
                 <Icon className="size-4" aria-hidden />
                 {formatCategory(c)}
+                {counts && <span className={selected === c ? 'text-white/70' : 'text-muted'}>{counts[c]}</span>}
               </button>
             </li>
           )

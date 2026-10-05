@@ -66,6 +66,13 @@ export interface SearchParams {
 export const searchListings = (params: SearchParams) =>
   client.get<Page<Listing>>('/api/listings', { params }).then((r) => r.data)
 
+/** The front page's Featured row (cached on the server for a minute). */
+export const getFeatured = () => client.get<Listing[]>('/api/listings/featured').then((r) => r.data)
+
+/** Active listings per category, for the chips (cached on the server for five minutes). */
+export const getCategoryCounts = () =>
+  client.get<Record<Category, number>>('/api/listings/category-counts').then((r) => r.data)
+
 export const getListing = (id: string | number) => client.get<Listing>(`/api/listings/${id}`).then((r) => r.data)
 
 export const myListings = (params: { status?: ListingStatus; reserved?: boolean; page?: number; size?: number }) =>
