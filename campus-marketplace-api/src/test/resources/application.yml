@@ -32,6 +32,9 @@ app:
   frontend-url: http://localhost:5173
   orders:
     auto-complete-after: 72h
+  rate-limit:
+    enabled: false   # the rate-limit tests switch it on
+    trusted-proxies: 1
   cache:
     enabled: false   # most tests change data directly; the cache tests switch it on
   notifications:

@@ -69,6 +69,11 @@ app:
   registration:
     # Only emails at exactly this domain may sign up (no subdomains).
     allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:seu.edu.bd}
+  rate-limit:
+    # In-memory limits on login, signup, password reset and OTP endpoints.
+    enabled: ${APP_RATE_LIMIT_ENABLED:true}
+    # Proxies in front of the app that append to X-Forwarded-For (Cloud Run: 1).
+    trusted-proxies: ${APP_TRUSTED_PROXIES:1}
   reporting:
     # Which time zone a "day" is in for the admin revenue report.
     zone: ${REPORTING_ZONE:Asia/Dhaka}
