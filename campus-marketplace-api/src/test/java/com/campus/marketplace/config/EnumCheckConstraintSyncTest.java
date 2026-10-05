@@ -66,6 +66,21 @@ class EnumCheckConstraintSyncTest {
     }
 
     @Test
+    void theRealRunWritesEveryCurrentEnumValueIntoTheApplicationConstraints() {
+        sync.run(null);
+
+        assertThat(checkClause("PAYMENTS_PURPOSE_CHECK"))
+                .contains("FEATURE_LISTING", "RESERVE_ITEM", "PURCHASE", "POSTING_FEE");
+        assertThat(checkClause("PAYMENTS_STATUS_CHECK")).contains("PENDING", "SUCCEEDED", "FAILED", "REFUNDED");
+        assertThat(checkClause("LISTINGS_STATUS_CHECK")).contains("ACTIVE", "SOLD", "PENDING_PAYMENT");
+    }
+
+    private String checkClause(String constraint) {
+        return jdbc.queryForObject("SELECT check_clause FROM information_schema.check_constraints "
+                + "WHERE constraint_name = ?", String.class, constraint);
+    }
+
+    @Test
     void theRealRunLeavesTheApplicationTablesAcceptingEveryEnumValue() {
         // Re-running over the live schema (as every startup does) must not break it or lose rows.
         sync.run(null);

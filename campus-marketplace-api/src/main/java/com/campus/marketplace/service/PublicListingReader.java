@@ -42,6 +42,8 @@ public class PublicListingReader {
     public ListingResponse publicView(Long id) {
         return listingRepository.findWithOwnerById(id)
                 .filter(l -> l.getOwner().isActive())
+                // A listing waiting for its posting fee is not public. Not cached either (a 404 isn't).
+                .filter(l -> l.getStatus() != com.campus.marketplace.entity.ListingStatus.PENDING_PAYMENT)
                 .map(ListingResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Listing " + id + " not found"));
     }

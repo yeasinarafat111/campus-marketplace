@@ -19,7 +19,8 @@ class PaymentPropertiesTest {
     }
 
     private static PaymentProperties props(String currency, PaymentProperties.Fee fee) {
-        return new PaymentProperties(currency, fee, "http://x/success", "http://x/cancel",
+        return new PaymentProperties(currency, fee,
+                new PaymentProperties.PostingFee(true, new BigDecimal("5.00")), "http://x/success", "http://x/cancel",
                 Duration.ofDays(7), Duration.ofHours(48));
     }
 

@@ -5,6 +5,7 @@ import com.campus.marketplace.config.PaymentProperties;
 import com.campus.marketplace.dto.CheckoutSessionRequest;
 import com.campus.marketplace.dto.CheckoutSessionResponse;
 import com.campus.marketplace.dto.FeeQuote;
+import com.campus.marketplace.dto.PostingFeeQuote;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.Order;
 import com.campus.marketplace.entity.ListingStatus;
@@ -55,6 +56,7 @@ public class PaymentService {
     private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
     private final ListingCacheEvictor cacheEvictor;
+    private final PostingFeePolicy postingFeePolicy;
 
     /**
      * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
@@ -65,6 +67,8 @@ public class PaymentService {
     public FeeQuote quote(Long listingId) {
         Listing listing = listingRepository.findWithOwnerById(listingId)
                 .filter(l -> l.getOwner().isActive())
+                // A listing still waiting for its posting fee doesn't exist for anyone else.
+                .filter(l -> l.getStatus() != ListingStatus.PENDING_PAYMENT)
                 .orElseThrow(() -> new ResourceNotFoundException("Listing " + listingId + " not found"));
         if (listing.getStatus() != ListingStatus.ACTIVE) {
             throw new ConflictException("This listing is no longer available");
@@ -82,6 +86,19 @@ public class PaymentService {
                 price.setScale(2, RoundingMode.HALF_UP).toPlainString(),
                 paymentProperties.featureDuration().toDays(),
                 paymentProperties.reservationDuration().toHours());
+    }
+
+    /**
+     * What posting a listing at this price costs, for the create page's live line. Pure arithmetic, nothing is
+     * saved. Prices up to the threshold (and anything not positive) post for free.
+     */
+    public PostingFeeQuote postingFeeQuote(BigDecimal price) {
+        String currency = paymentProperties.currency();
+        if (!postingFeePolicy.applies(price)) {
+            return new PostingFeeQuote(false, 0, BigDecimal.ZERO, postingFeePolicy.thresholdCents(), currency);
+        }
+        return new PostingFeeQuote(true, feeCalculator.feeCents(price), feeCalculator.rateFor(price),
+                postingFeePolicy.thresholdCents(), currency);
     }
 
     /**
@@ -117,11 +134,26 @@ public class PaymentService {
             listing = freeIfReservationLapsed(listing);
         }
 
-        if (listing.getStatus() != ListingStatus.ACTIVE) {
-            throw new ConflictException("This listing is no longer available");
-        }
         boolean isOwner = Objects.equals(listing.getOwner().getId(), userId);
+        if (listing.getStatus() == ListingStatus.PENDING_PAYMENT && !isOwner) {
+            // Unpublished listings don't exist as far as anyone but their owner is concerned.
+            throw new ResourceNotFoundException("Listing " + request.listingId() + " not found");
+        }
+        boolean postingFee = request.purpose() == PaymentPurpose.POSTING_FEE;
+        if (postingFee ? listing.getStatus() != ListingStatus.PENDING_PAYMENT : listing.getStatus() != ListingStatus.ACTIVE) {
+            throw new ConflictException(postingFee ? "This listing doesn't need a posting fee"
+                    : "This listing is no longer available");
+        }
         Charge charge = switch (request.purpose()) {
+            case POSTING_FEE -> {
+                if (!isOwner) {
+                    throw new ForbiddenException("Only the listing owner can pay its posting fee");
+                }
+                if (!postingFeePolicy.applies(listing.getPrice())) {
+                    throw new ConflictException("No posting fee is due at this price. Save the listing again to publish it.");
+                }
+                yield feeCharge(listing);
+            }
             case FEATURE_LISTING -> {
                 if (!isOwner) {
                     throw new ForbiddenException("Only the listing owner can feature a listing");
@@ -285,8 +317,34 @@ public class PaymentService {
                 }
             }
             case RESERVE_ITEM -> applyReservation(payment, listing, now);
+            case POSTING_FEE -> applyPostingFee(payment, listing);
             case PURCHASE -> applyPurchase(payment, listing, now);
         }
+    }
+
+    /**
+     * Publishes a listing that was waiting for its posting fee. Idempotent through the payment's status, and it
+     * is refunded instead of applied when it can't be: the listing is already live (a second checkout for it),
+     * or its price was raised after checkout started, so the fee paid no longer covers it (the listing stays
+     * unpublished and the owner pays again at the new price).
+     */
+    private void applyPostingFee(Payment payment, Listing listing) {
+        if (listing.getStatus() != ListingStatus.PENDING_PAYMENT) {
+            log.warn("Payment {} succeeded but listing {} is {}, not awaiting payment; refunding the fee",
+                    payment.getId(), listing.getId(), listing.getStatus());
+            refund(payment);
+            return;
+        }
+        long paidOn = payment.getBasisPriceCents() == null ? 0L : payment.getBasisPriceCents();
+        if (FeeCalculator.toCents(listing.getPrice()) > paidOn) {
+            log.warn("Payment {} covered a price of {} cents but listing {} now costs more; refunding the fee",
+                    payment.getId(), paidOn, listing.getId());
+            refund(payment);
+            return;
+        }
+        listing.setStatus(ListingStatus.ACTIVE);
+        listing.setPostingFeeBasisCents(paidOn);
+        log.info("Listing {} published after its posting fee (payment {})", listing.getId(), payment.getId());
     }
 
     private void applyReservation(Payment payment, Listing listing, Instant now) {
@@ -423,6 +481,7 @@ public class PaymentService {
         return switch (purpose) {
             case FEATURE_LISTING -> "Feature listing: " + title;
             case RESERVE_ITEM -> "Reservation deposit: " + title;
+            case POSTING_FEE -> "Posting fee: " + title;
             case PURCHASE -> "Purchase (balance after deposit): " + title;
         };
     }

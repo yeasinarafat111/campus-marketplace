@@ -46,6 +46,15 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
     @EntityGraph(attributePaths = "owner")
     Page<Listing> findByOwner(User owner, Pageable pageable);
 
+    /**
+     * Deletes listings that have waited for their posting fee since before {@code cutoff}. The payments that
+     * pointed at them are kept (the database nulls the link); a fee paid after the delete is refunded by the webhook.
+     */
+    @Modifying
+    @Query("delete from Listing l where l.status = com.campus.marketplace.entity.ListingStatus.PENDING_PAYMENT "
+            + "and l.createdAt < :cutoff")
+    int deleteStalePending(@Param("cutoff") Instant cutoff);
+
     /** Active listings per category, for sellers that haven't been deactivated. Categories with none are absent. */
     @Query("""
             select l.category, count(l) from Listing l

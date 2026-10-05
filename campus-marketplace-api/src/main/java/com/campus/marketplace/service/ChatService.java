@@ -74,6 +74,7 @@ public class ChatService {
             conversationId = transactionTemplate.execute(tx -> {
                 Listing listing = listingRepository.findWithOwnerById(listingId)
                         .filter(l -> l.getOwner().isActive())
+                        .filter(l -> l.getStatus() != com.campus.marketplace.entity.ListingStatus.PENDING_PAYMENT)
                         .orElseThrow(() -> new ResourceNotFoundException("Listing " + listingId + " not found"));
                 if (listing.getOwner().getId().equals(userId)) {
                     throw new BadRequestException("You can't message yourself about your own listing");

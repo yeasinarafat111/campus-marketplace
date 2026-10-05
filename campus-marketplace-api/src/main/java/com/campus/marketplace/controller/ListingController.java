@@ -5,6 +5,7 @@ import com.campus.marketplace.dto.ListingRequest;
 import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
+import com.campus.marketplace.dto.PostingFeeQuote;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingService;
@@ -64,6 +65,15 @@ public class ListingController {
             @RequestParam(defaultValue = "desc") String direction) {
         return listingService.search(keyword, category, minPrice, maxPrice, ownerId, featured, page, size, sort,
                 direction);
+    }
+
+    /**
+     * The posting fee for a price, for the create page's live quote. Public arithmetic: a price at or below the
+     * threshold is free.
+     */
+    @GetMapping("/posting-fee")
+    public PostingFeeQuote postingFee(@RequestParam BigDecimal price) {
+        return paymentService.postingFeeQuote(price);
     }
 
     /** The front page's Featured row. Public; cached for a minute. */

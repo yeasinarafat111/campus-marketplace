@@ -20,6 +20,7 @@ class StripeCheckoutGatewayTest {
     private static final PaymentProperties PAYMENTS = new PaymentProperties("usd",
             new PaymentProperties.Fee(new java.math.BigDecimal("20.00"), new java.math.BigDecimal("0.03"),
                     new java.math.BigDecimal("0.05"), 50),
+            new PaymentProperties.PostingFee(true, new java.math.BigDecimal("5.00")),
             "http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}",
             "http://localhost:3000/payments/cancel", java.time.Duration.ofDays(7), java.time.Duration.ofHours(48));
 

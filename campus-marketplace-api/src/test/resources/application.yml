@@ -61,6 +61,9 @@ app:
       low-rate: 0.03
       high-rate: 0.05
       minimum-cents: 50
+    posting-fee:
+      enabled: false   # most tests create listings through the API and expect them live; the posting-fee tests turn it on
+      threshold: 5.00
     reservation-duration: 48h
     success-url: http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}
     cancel-url: http://localhost:3000/payments/cancel

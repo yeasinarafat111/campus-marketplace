@@ -56,6 +56,7 @@ public class ListingService {
     private final TransactionTemplate transactionTemplate;
     private final PaymentService paymentService;
     private final PublicListingReader publicReader;
+    private final PostingFeePolicy postingFeePolicy;
 
     /**
      * Public browse: ACTIVE listings whose owner hasn't been deactivated. Without an explicit {@code sort},
@@ -104,7 +105,18 @@ public class ListingService {
         if (currentUser.isAdmin()) {
             return transactionTemplate.execute(tx -> ListingResponse.from(findWithOwner(id), viewerId));
         }
-        ListingResponse publicView = publicReader.publicView(id);
+        ListingResponse publicView;
+        try {
+            publicView = publicReader.publicView(id);
+        } catch (ResourceNotFoundException e) {
+            // An unpublished listing is hidden from everyone but its owner, who can still open it.
+            return viewerId == null ? rethrow(e) : transactionTemplate.execute(tx -> {
+                Listing own = listingRepository.findWithOwnerById(id)
+                        .filter(l -> l.getStatus() == ListingStatus.PENDING_PAYMENT && l.getOwner().getId().equals(viewerId))
+                        .orElseThrow(() -> e);
+                return ListingResponse.from(own, viewerId);
+            });
+        }
         if (viewerId == null || (!publicView.reserved() && publicView.status() != ListingStatus.SOLD)) {
             return publicView;
         }
@@ -156,9 +168,12 @@ public class ListingService {
             return transactionTemplate.execute(tx -> {
                 User owner = userRepository.findById(ownerId)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                // Above the threshold the listing waits, unpublished, for its posting fee; otherwise it goes live.
+                boolean needsFee = postingFeePolicy.applies(request.price());
                 Listing listing = Listing.builder()
                         .owner(owner)
-                        .status(ListingStatus.ACTIVE)
+                        .status(needsFee ? ListingStatus.PENDING_PAYMENT : ListingStatus.ACTIVE)
+                        .postingFeeBasisCents(needsFee ? null : postingFeePolicy.coveredCentsWithoutFee())
                         .build();
                 apply(request, listing);
                 if (uploaded != null) {
@@ -192,7 +207,21 @@ public class ListingService {
         if (listing.isReserved() && request.price().compareTo(listing.getPrice()) != 0) {
             throw new ConflictException("Price can't change while the item is reserved");
         }
+        // The posting fee covers a price. Lowering it is fine; raising it past what was paid for would dodge the
+        // fee, so the owner has to post again. A published listing from before posting fees has no limit.
+        if (listing.getStatus() != ListingStatus.PENDING_PAYMENT && listing.getPostingFeeBasisCents() != null
+                && FeeCalculator.toCents(request.price()) > listing.getPostingFeeBasisCents()) {
+            throw new ConflictException("The price can't be raised above what your posting fee covered ("
+                    + com.campus.marketplace.service.PostingFeePolicy.format(listing.getPostingFeeBasisCents())
+                    + "). Delete this listing and post it again at the new price.");
+        }
         apply(request, listing);
+        // A listing that was waiting for its fee goes live as soon as it no longer needs one (the owner lowered
+        // the price to the free tier, or posting fees were switched off).
+        if (listing.getStatus() == ListingStatus.PENDING_PAYMENT && !postingFeePolicy.applies(listing.getPrice())) {
+            listing.setStatus(ListingStatus.ACTIVE);
+            listing.setPostingFeeBasisCents(postingFeePolicy.coveredCentsWithoutFee());
+        }
         return ListingResponse.from(listing, currentUser.requireId());
     }
 
@@ -210,6 +239,9 @@ public class ListingService {
     public ListingResponse markSold(Long id) {
         Listing listing = listingRepository.findForUpdateById(id).orElseThrow(() -> notFound(id));
         requireOwner(listing, "You can only mark your own listings as sold");
+        if (listing.getStatus() == ListingStatus.PENDING_PAYMENT) {
+            throw new ConflictException("This listing isn't published yet. Pay its posting fee first, or delete it.");
+        }
         if (listing.getStatus() != ListingStatus.SOLD) {
             if (listing.isReserved()) {
                 throw new ConflictException("This item is reserved. Cancel the reservation first; the buyer's deposit is refunded.");
@@ -307,6 +339,23 @@ public class ListingService {
         Sort.Direction dir = parseDirection(direction);
         // Tie-break on id so pages are stable when many rows share the same price/date.
         return PageRequest.of(page, size, Sort.by(dir, property).and(Sort.by(dir, "id")));
+    }
+
+    /** How long a listing may wait for its posting fee before it is deleted. */
+    static final java.time.Duration PENDING_PAYMENT_TTL = java.time.Duration.ofHours(24);
+
+    /** Deletes listings still waiting for their posting fee after 24 hours. Returns how many. */
+    @Transactional
+    public int deleteStalePending(Instant now) {
+        int deleted = listingRepository.deleteStalePending(now.minus(PENDING_PAYMENT_TTL));
+        if (deleted > 0) {
+            log.info("Deleted {} listing(s) that never paid their posting fee", deleted);
+        }
+        return deleted;
+    }
+
+    private static ListingResponse rethrow(ResourceNotFoundException e) {
+        throw e;
     }
 
     private static ResourceNotFoundException notFound(Long id) {

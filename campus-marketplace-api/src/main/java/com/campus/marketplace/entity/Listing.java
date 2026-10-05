@@ -108,6 +108,13 @@ public class Listing {
 
     private Instant soldAt;
 
+    /**
+     * The highest price (in minor units) this listing's posting covers: the price the fee was paid on, or the
+     * free-posting threshold for a listing that needed no fee. The price can't be raised above it (that would
+     * dodge the fee); lowering is always fine. Null for listings from before posting fees, which are grandfathered.
+     */
+    private Long postingFeeBasisCents;
+
     public void clearReservation() {
         this.reservedBy = null;
         this.reservedAt = null;

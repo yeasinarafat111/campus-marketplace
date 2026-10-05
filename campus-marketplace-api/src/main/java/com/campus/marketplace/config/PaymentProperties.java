@@ -16,6 +16,7 @@ import java.time.Duration;
  * Bound from {@code app.payments.*}. Amounts are never configured directly: the fee for a listing is
  * computed from its price by {@link com.campus.marketplace.service.FeeCalculator} using {@link Fee}.
  *
+ * @param postingFee          the listing posting fee switch and threshold
  * @param successUrl          where Stripe sends the user after paying; may contain {CHECKOUT_SESSION_ID}
  * @param cancelUrl           where Stripe sends the user if they back out
  * @param featureDuration     how long a paid FEATURE_LISTING keeps the listing featured
@@ -26,6 +27,7 @@ import java.time.Duration;
 public record PaymentProperties(
         @NotBlank @Pattern(regexp = "[a-z]{3}", message = "must be a lower-case ISO 4217 code, e.g. usd") String currency,
         @NotNull @Valid Fee fee,
+        @NotNull @Valid PostingFee postingFee,
         @NotBlank String successUrl,
         @NotBlank String cancelUrl,
         @NotNull Duration featureDuration,
@@ -40,6 +42,17 @@ public record PaymentProperties(
             throw new IllegalArgumentException("app.payments.fee.minimum-cents must be at least "
                     + STRIPE_MINIMUM_USD_CENTS + " for usd (Stripe's minimum charge), but was " + fee.minimumCents());
         }
+    }
+
+    /**
+     * Posting fee for new listings. Only a price strictly above {@code threshold} pays one (the amount comes from
+     * {@link Fee}, like every other fee); {@code threshold} and below, including free, post for nothing. Set
+     * {@code enabled=false} to switch the whole thing off (e.g. for a demo).
+     */
+    public record PostingFee(
+            boolean enabled,
+            @NotNull @DecimalMin(value = "0.00", inclusive = false) java.math.BigDecimal threshold
+    ) {
     }
 
     /**

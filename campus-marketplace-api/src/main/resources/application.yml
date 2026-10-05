@@ -101,6 +101,10 @@ app:
       high-rate: ${PAYMENT_FEE_HIGH_RATE:0.05}
       minimum-cents: ${PAYMENT_FEE_MINIMUM_CENTS:50}
     # How long a paid reservation holds an item before it expires.
+    # Posting fee for a new listing priced above the threshold (same fee formula as above). Off switch for demos.
+    posting-fee:
+      enabled: ${PAYMENT_POSTING_FEE_ENABLED:true}
+      threshold: ${PAYMENT_POSTING_FEE_THRESHOLD:5.00}
     reservation-duration: ${RESERVATION_DURATION:48h}
     # Frontend pages Stripe redirects to. {CHECKOUT_SESSION_ID} is filled in by Stripe.
     success-url: ${PAYMENT_SUCCESS_URL:http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}}
