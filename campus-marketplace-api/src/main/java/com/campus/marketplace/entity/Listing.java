@@ -60,6 +60,11 @@ public class Listing {
     @Column(length = 500)
     private String imageUrl;
 
+    /** Optional. Column is item_condition because CONDITION is a reserved word in some SQL dialects. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_condition", length = 20)
+    private ItemCondition itemCondition;
+
     /** Where the seller prefers to meet. Optional; null means "not stated". */
     @Enumerated(EnumType.STRING)
     @Column(length = 30)

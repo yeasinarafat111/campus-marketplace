@@ -477,6 +477,40 @@ class ListingControllerTest {
                 .andExpect(jsonPath("$.price").value(0));
     }
 
+    // ---- item condition ----
+
+    @Test
+    void itemCondition_isOptional_validated_shownAndFilterable() throws Exception {
+        for (String c : new String[] {"NEW", "LIKE_NEW", "GOOD", "FAIR"}) {
+            mockMvc.perform(json(post("/api/listings"), aliceToken,
+                            "{\"title\":\"Item " + c + "\",\"price\":12,\"category\":\"OTHER\",\"itemCondition\":\"" + c + "\"}"))
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.itemCondition").value(c));
+        }
+        mockMvc.perform(json(post("/api/listings"), aliceToken, "{\"title\":\"Unstated\",\"price\":12,\"category\":\"OTHER\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.itemCondition").isEmpty());
+        mockMvc.perform(json(post("/api/listings"), aliceToken,
+                        "{\"title\":\"Bad\",\"price\":12,\"category\":\"OTHER\",\"itemCondition\":\"MINT\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/listings").param("condition", "GOOD")).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Item GOOD"));
+        mockMvc.perform(get("/api/listings")).andExpect(jsonPath("$.totalElements").value(5));
+        mockMvc.perform(get("/api/listings").param("condition", "MINT")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void itemCondition_canBeChangedAndClearedOnEdit() throws Exception {
+        Listing listing = saveListing("Lamp", Category.OTHER, "20.00", ListingStatus.ACTIVE, alice);
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":20,\"category\":\"OTHER\",\"itemCondition\":\"FAIR\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itemCondition").value("FAIR"));
+        mockMvc.perform(json(put("/api/listings/{id}", listing.getId()), aliceToken,
+                        "{\"title\":\"Lamp\",\"price\":20,\"category\":\"OTHER\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itemCondition").isEmpty());
+        mockMvc.perform(auth(multipartListing("Form lamp", "12", "OTHER").param("itemCondition", "LIKE_NEW"), aliceToken))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.itemCondition").value("LIKE_NEW"));
+    }
+
     // ---- meetup spot ----
 
     @Test

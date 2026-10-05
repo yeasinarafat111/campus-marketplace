@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import type { Listing } from '../api/listings'
+import { CONDITION_LABELS, type Listing } from '../api/listings'
 import { cx, formatCategory, timeAgo } from '../lib'
 import ListingBadges from './ListingBadges'
 import ImageWithFallback from './ui/ImageWithFallback'
@@ -23,7 +23,7 @@ export default function ListingCard({ listing, className }: { listing: Listing; 
       <PriceTag price={listing.price} size="md" className="mt-2 block" />
       <h3 className="truncate text-sm text-ink group-hover:underline">{listing.title}</h3>
       <p className="truncate text-xs text-muted">
-        {formatCategory(listing.category)} · {timeAgo(listing.createdAt)}
+        {formatCategory(listing.category)}{listing.itemCondition ? ` · ${CONDITION_LABELS[listing.itemCondition]}` : ''} · {timeAgo(listing.createdAt)}
       </p>
     </Link>
   )

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { PackageSearch, SlidersHorizontal, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CATEGORIES, getCategoryCounts, getFeatured, searchListings, type Category, type SearchParams } from '../api/listings'
+import { CATEGORIES, CONDITION_LABELS, ITEM_CONDITIONS, getCategoryCounts, getFeatured, searchListings, type Category, type ItemCondition, type SearchParams } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import { CATEGORY_ICONS } from '../components/categoryIcons'
@@ -35,16 +35,17 @@ export default function ListingsPage() {
   const category = (params.get('category') ?? '') as Category | ''
   const minPrice = params.get('minPrice') ?? ''
   const maxPrice = params.get('maxPrice') ?? ''
+  const condition = (params.get('condition') ?? '') as ItemCondition | ''
   const sortKey = params.get('sort') && SORTS[params.get('sort')!] ? params.get('sort')! : 'recommended'
   const seller = Number(params.get('seller')) || undefined
   const page = Number(params.get('page') ?? 0) || 0
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const hasFilters = Boolean(q || category || minPrice || maxPrice || seller)
+  const hasFilters = Boolean(q || category || minPrice || maxPrice || seller || condition)
   useDocumentTitle(q ? `“${q}”` : 'Browse listings')
 
   const results = useQuery({
-    queryKey: ['listings', { q, category, minPrice, maxPrice, sortKey, seller, page }],
+    queryKey: ['listings', { q, category, minPrice, maxPrice, condition, sortKey, seller, page }],
     queryFn: () =>
       searchListings({
         keyword: q || undefined,
@@ -52,6 +53,7 @@ export default function ListingsPage() {
         minPrice: minPrice || undefined,
         maxPrice: maxPrice || undefined,
         ownerId: seller,
+        condition: condition || undefined,
         ...SORTS[sortKey].params,
         page,
         size: PAGE_SIZE,
@@ -117,10 +119,11 @@ export default function ListingsPage() {
             </p>
           </div>
           <FilterBar
-            key={`${minPrice}-${maxPrice}-${sortKey}`}
+            key={`${minPrice}-${maxPrice}-${sortKey}-${condition}`}
             className="hidden md:flex"
             minPrice={minPrice}
             maxPrice={maxPrice}
+            condition={condition}
             sortKey={sortKey}
             onApply={update}
           />
@@ -134,6 +137,7 @@ export default function ListingsPage() {
           <div className="mb-4 flex flex-wrap gap-2">
             {q && <Chip label={`Search: ${q}`} onClear={() => update({ q: '' })} />}
             {seller && <Chip label="One seller" onClear={() => update({ seller: '' })} />}
+            {condition && <Chip label={`Condition: ${CONDITION_LABELS[condition]}`} onClear={() => update({ condition: '' })} />}
             {(minPrice || maxPrice) && (
               <Chip
                 label={`Price: ${minPrice ? `$${minPrice}` : '$0'} – ${maxPrice ? `$${maxPrice}` : 'any'}`}
@@ -199,10 +203,11 @@ export default function ListingsPage() {
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen} title="Filters" side="bottom">
         <FilterBar
-          key={`m-${minPrice}-${maxPrice}-${sortKey}`}
+          key={`m-${minPrice}-${maxPrice}-${sortKey}-${condition}`}
           stacked
           minPrice={minPrice}
           maxPrice={maxPrice}
+          condition={condition}
           sortKey={sortKey}
           onApply={(next) => {
             update(next)
@@ -260,6 +265,7 @@ function Chip({ label, onClear }: { label: string; onClear: () => void }) {
 function FilterBar({
   minPrice,
   maxPrice,
+  condition,
   sortKey,
   onApply,
   stacked = false,
@@ -267,6 +273,7 @@ function FilterBar({
 }: {
   minPrice: string
   maxPrice: string
+  condition: string
   sortKey: string
   onApply: (next: Record<string, string>) => void
   stacked?: boolean
@@ -275,10 +282,11 @@ function FilterBar({
   const [min, setMin] = useState(minPrice)
   const [max, setMax] = useState(maxPrice)
   const [sort, setSort] = useState(sortKey)
+  const [cond, setCond] = useState(condition)
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    onApply({ minPrice: min.trim(), maxPrice: max.trim(), sort: sort === 'recommended' ? '' : sort })
+    onApply({ minPrice: min.trim(), maxPrice: max.trim(), condition: cond, sort: sort === 'recommended' ? '' : sort })
   }
 
   return (
@@ -288,6 +296,10 @@ function FilterBar({
         <span aria-hidden className="text-muted">–</span>
         <Input type="number" inputMode="decimal" min="0" step="0.01" value={max} onChange={(e) => setMax(e.target.value)} placeholder="Max $" aria-label="Maximum price" className="w-24" />
       </div>
+      <Select value={cond} onChange={(e) => setCond(e.target.value)} aria-label="Condition" className={stacked ? '' : 'w-36'}>
+        <option value="">Any condition</option>
+        {ITEM_CONDITIONS.map((c) => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
+      </Select>
       <Select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by" className={stacked ? '' : 'w-48'}>
         {Object.entries(SORTS).map(([key, { label }]) => (
           <option key={key} value={key}>

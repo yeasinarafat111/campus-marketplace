@@ -7,6 +7,7 @@ import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.PostingFeeQuote;
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingService;
 import com.campus.marketplace.service.PaymentService;
@@ -58,12 +59,13 @@ public class ListingController {
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) Long ownerId,
             @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) ItemCondition condition,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             // Omit to get featured listings first, then newest.
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "desc") String direction) {
-        return listingService.search(keyword, category, minPrice, maxPrice, ownerId, featured, page, size, sort,
+        return listingService.search(keyword, category, minPrice, maxPrice, ownerId, featured, condition, page, size, sort,
                 direction);
     }
 

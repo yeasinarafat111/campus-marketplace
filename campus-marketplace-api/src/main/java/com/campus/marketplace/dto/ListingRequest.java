@@ -1,6 +1,7 @@
 package com.campus.marketplace.dto;
 
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.MeetupSpot;
 import com.campus.marketplace.validation.ValidListingPrice;
 import jakarta.validation.constraints.DecimalMin;
@@ -39,7 +40,10 @@ public record ListingRequest(
         String imageUrl,
 
         // Optional: where on campus the seller prefers to hand the item over.
-        MeetupSpot meetupSpot
+        MeetupSpot meetupSpot,
+
+        // Optional: how worn the item is.
+        ItemCondition itemCondition
 ) {
     public ListingRequest {
         title = title == null ? null : title.trim();

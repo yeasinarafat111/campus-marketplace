@@ -2,6 +2,7 @@ package com.campus.marketplace.dto;
 
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.Listing;
+import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.entity.MeetupSpot;
 import com.campus.marketplace.entity.User;
@@ -23,6 +24,7 @@ public record ListingResponse(
         Category category,
         String imageUrl,
         MeetupSpot meetupSpot,
+        ItemCondition itemCondition,
         ListingStatus status,
         Instant createdAt,
         Owner owner,
@@ -37,7 +39,7 @@ public record ListingResponse(
 ) {
     /** The price minus the deposit, in minor units: what the reserver still owes (online or in cash). */
     public ListingResponse withBalanceDue(Long cents) {
-        return new ListingResponse(id, title, description, price, category, imageUrl, meetupSpot, status, createdAt, owner,
+        return new ListingResponse(id, title, description, price, category, imageUrl, meetupSpot, itemCondition, status, createdAt, owner,
                 featured, featuredUntil, reserved, reservedByMe, reservationExpiresAt, cashChosen, cents, counterparty);
     }
 
@@ -99,6 +101,7 @@ public record ListingResponse(
                 listing.getCategory(),
                 listing.getImageUrl(),
                 listing.getMeetupSpot(),
+                listing.getItemCondition(),
                 listing.getStatus(),
                 listing.getCreatedAt(),
                 new Owner(owner.getId(), owner.getFullName(), owner.getCreatedAt()),

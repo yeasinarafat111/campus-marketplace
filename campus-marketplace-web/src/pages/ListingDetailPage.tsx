@@ -1,6 +1,6 @@
 import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { MEETUP_LABELS, type Listing } from '../api/listings'
+import { CONDITION_LABELS, MEETUP_LABELS, type Listing } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
@@ -93,6 +93,12 @@ export default function ListingDetailPage() {
           <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-line pt-4 text-sm">
             <dt className="text-muted">Category</dt>
             <dd>{formatCategory(listing.category)}</dd>
+            {listing.itemCondition && (
+              <>
+                <dt className="text-muted">Condition</dt>
+                <dd>{CONDITION_LABELS[listing.itemCondition]}</dd>
+              </>
+            )}
             {listing.meetupSpot && (
               <>
                 <dt className="text-muted">Meetup spot</dt>

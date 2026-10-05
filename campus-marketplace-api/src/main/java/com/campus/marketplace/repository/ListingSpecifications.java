@@ -2,6 +2,7 @@ package com.campus.marketplace.repository;
 
 import com.campus.marketplace.dto.ListingSearchCriteria;
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
 import org.springframework.data.jpa.domain.Specification;
@@ -45,6 +46,10 @@ public final class ListingSpecifications {
     public static Specification<Listing> titleContains(String keyword) {
         String pattern = "%" + escapeLike(keyword.trim().toLowerCase(Locale.ROOT)) + "%";
         return (root, query, cb) -> cb.like(cb.lower(root.get("title")), pattern, LIKE_ESCAPE);
+    }
+
+    public static Specification<Listing> hasCondition(ItemCondition condition) {
+        return (root, query, cb) -> cb.equal(root.get("itemCondition"), condition);
     }
 
     public static Specification<Listing> hasCategory(Category category) {

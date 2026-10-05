@@ -4,6 +4,10 @@ export const CATEGORIES = ['BOOKS', 'ELECTRONICS', 'FURNITURE', 'CLOTHING', 'STA
 export type Category = (typeof CATEGORIES)[number]
 export type ListingStatus = 'ACTIVE' | 'SOLD' | 'PENDING_PAYMENT'
 
+export const ITEM_CONDITIONS = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'] as const
+export type ItemCondition = (typeof ITEM_CONDITIONS)[number]
+export const CONDITION_LABELS: Record<ItemCondition, string> = { NEW: 'New', LIKE_NEW: 'Like new', GOOD: 'Good', FAIR: 'Fair' }
+
 export const MEETUP_SPOTS = ['MAIN_GATE', 'LIBRARY', 'CAFETERIA', 'PERMANENT_CAMPUS', 'OTHER'] as const
 export type MeetupSpot = (typeof MEETUP_SPOTS)[number]
 export const MEETUP_LABELS: Record<MeetupSpot, string> = {
@@ -22,6 +26,7 @@ export interface Listing {
   category: Category
   imageUrl: string | null
   meetupSpot: MeetupSpot | null
+  itemCondition: ItemCondition | null
   status: ListingStatus
   createdAt: string
   owner: { id: number; fullName: string; memberSince: string }
@@ -63,6 +68,8 @@ export interface ListingInput {
   imageUrl?: string
   /** Empty string means "no preference". */
   meetupSpot: MeetupSpot | ''
+  /** Empty string means "not stated". */
+  itemCondition: ItemCondition | ''
 }
 
 export interface SearchParams {
@@ -73,6 +80,7 @@ export interface SearchParams {
   ownerId?: number
   /** True: only currently featured listings. */
   featured?: boolean
+  condition?: ItemCondition
   /** Omit for the default order: featured listings first, then newest. */
   sort?: 'createdAt' | 'price' | 'title'
   direction?: 'asc' | 'desc'
@@ -116,6 +124,7 @@ export function createListing(input: ListingInput, image: File | null) {
   form.append('price', input.price)
   form.append('category', input.category)
   if (input.meetupSpot) form.append('meetupSpot', input.meetupSpot)
+  if (input.itemCondition) form.append('itemCondition', input.itemCondition)
   if (image) form.append('image', image)
   // Overrides the client's JSON default; the browser then adds the multipart boundary.
   return client
@@ -126,7 +135,7 @@ export function createListing(input: ListingInput, image: File | null) {
 // PUT is a full replacement and JSON-only on the backend, so the image can only be changed via imageUrl.
 export const updateListing = (id: number, input: ListingInput) =>
   client
-    .put<Listing>(`/api/listings/${id}`, { ...input, price: Number(input.price), meetupSpot: input.meetupSpot || null })
+    .put<Listing>(`/api/listings/${id}`, { ...input, price: Number(input.price), meetupSpot: input.meetupSpot || null, itemCondition: input.itemCondition || null })
     .then((r) => r.data)
 
 export const markSold = (id: number) => client.patch<Listing>(`/api/listings/${id}/sold`).then((r) => r.data)

@@ -3,7 +3,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CATEGORIES, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, getPostingFee, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
+import { CATEGORIES, CONDITION_LABELS, ITEM_CONDITIONS, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, getPostingFee, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import { createCheckoutSession } from '../api/payments'
 import Alert from '../components/Alert'
@@ -20,7 +20,7 @@ import { isAxiosError } from 'axios'
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // matches the backend's multipart limit
 const MAX_DESCRIPTION = 2000
 
-const empty: ListingInput = { title: '', description: '', price: '', category: 'OTHER', imageUrl: '', meetupSpot: '' }
+const empty: ListingInput = { title: '', description: '', price: '', category: 'OTHER', imageUrl: '', meetupSpot: '', itemCondition: '' }
 
 export default function CreateEditListingPage() {
   const { id } = useParams()
@@ -48,6 +48,7 @@ function ListingForm({ existing }: { existing?: Listing }) {
           category: existing.category,
           imageUrl: existing.imageUrl ?? '',
           meetupSpot: existing.meetupSpot ?? '',
+          itemCondition: existing.itemCondition ?? '',
         }
       : empty,
   )
@@ -155,6 +156,15 @@ function ListingForm({ existing }: { existing?: Listing }) {
               : <>Free to post (up to {formatCents(postingFee.data.thresholdCents)}).</>}
           </p>
         )}
+
+        <Field label="Condition (optional)" error={fieldErrors.itemCondition}>
+          <Select value={form.itemCondition} onChange={set('itemCondition')}>
+            <option value="">Not stated</option>
+            {ITEM_CONDITIONS.map((c) => (
+              <option key={c} value={c}>{CONDITION_LABELS[c]}</option>
+            ))}
+          </Select>
+        </Field>
 
         <Field label="Meetup spot (optional)" hint="Where on campus you prefer to hand the item over." error={fieldErrors.meetupSpot}>
           <Select value={form.meetupSpot} onChange={set('meetupSpot')}>

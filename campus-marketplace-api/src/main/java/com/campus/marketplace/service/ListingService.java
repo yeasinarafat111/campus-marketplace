@@ -5,6 +5,7 @@ import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.ListingSearchCriteria;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.entity.Category;
+import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.Listing;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.entity.User;
@@ -67,7 +68,7 @@ public class ListingService {
      */
     @Transactional(readOnly = true)
     public PageResponse<ListingResponse> search(String keyword, Category category, BigDecimal minPrice,
-                                                BigDecimal maxPrice, Long ownerId, Boolean featured, int page,
+                                                BigDecimal maxPrice, Long ownerId, Boolean featured, ItemCondition condition, int page,
                                                 int size, String sort, String direction) {
         if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
             throw new BadRequestException("minPrice must not be greater than maxPrice");
@@ -80,6 +81,9 @@ public class ListingService {
         }
         if (Boolean.TRUE.equals(featured)) {
             spec = spec.and(ListingSpecifications.featuredAt(now));
+        }
+        if (condition != null) {
+            spec = spec.and(ListingSpecifications.hasCondition(condition));
         }
         Pageable pageable;
         if (sort == null) {
@@ -311,6 +315,7 @@ public class ListingService {
         listing.setCategory(request.category());
         listing.setImageUrl(request.imageUrl());
         listing.setMeetupSpot(request.meetupSpot());
+        listing.setItemCondition(request.itemCondition());
     }
 
     private static void validatePaging(int page, int size) {
