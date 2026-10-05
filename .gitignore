@@ -15,3 +15,9 @@ campus-marketplace-web/.env
 # Local tooling, not part of the project
 y/
 .firebase/
+
+# Safety net at the root (the subfolders have their own .gitignore too)
+.env
+target/
+dist/
+node_modules/
