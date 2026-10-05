@@ -1,27 +1,39 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AdminRoute from './components/AdminRoute'
 import AppLayout from './components/AppLayout'
 import ErrorBoundary from './components/ErrorBoundary'
-import MessagesPage from './pages/MessagesPage'
-import NotFoundPage from './pages/NotFoundPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
 import { ChatSocketProvider } from './context/ChatSocketProvider'
-import AdminDashboardPage from './pages/AdminDashboardPage'
-import AdminRevenuePage from './pages/AdminRevenuePage'
-import CreateEditListingPage from './pages/CreateEditListingPage'
-import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import ListingDetailPage from './pages/ListingDetailPage'
-import ListingsPage from './pages/ListingsPage'
-import LoginPage from './pages/LoginPage'
-import MyListingsPage from './pages/MyListingsPage'
-import OrdersPage from './pages/OrdersPage'
-import PaymentCancelPage from './pages/PaymentCancelPage'
-import ProfilePage from './pages/ProfilePage'
-import PaymentSuccessPage from './pages/PaymentSuccessPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import SignupPage from './pages/SignupPage'
-import VerifyOtpPage from './pages/VerifyOtpPage'
+
+const MessagesPage = lazy(() => import('./pages/MessagesPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'))
+const AdminRevenuePage = lazy(() => import('./pages/AdminRevenuePage'))
+const CreateEditListingPage = lazy(() => import('./pages/CreateEditListingPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ListingDetailPage = lazy(() => import('./pages/ListingDetailPage'))
+const ListingsPage = lazy(() => import('./pages/ListingsPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const MyListingsPage = lazy(() => import('./pages/MyListingsPage'))
+const OrdersPage = lazy(() => import('./pages/OrdersPage'))
+const PaymentCancelPage = lazy(() => import('./pages/PaymentCancelPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const PaymentSuccessPage = lazy(() => import('./pages/PaymentSuccessPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const VerifyOtpPage = lazy(() => import('./pages/VerifyOtpPage'))
+
+/** Shown while a page's code is fetched (the first visit to each page). */
+function PageFallback() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8" aria-busy="true" aria-label="Loading">
+      <div className="skeleton h-8 w-48" />
+      <div className="skeleton mt-6 h-64 w-full" />
+    </div>
+  )
+}
 
 export default function App() {
   return (
@@ -29,6 +41,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <ChatSocketProvider>
+          <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Navigate to="/listings" replace />} />
             <Route path="/signup" element={<SignupPage />} />
@@ -63,6 +76,7 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
+          </Suspense>
           </ChatSocketProvider>
         </AuthProvider>
       </BrowserRouter>

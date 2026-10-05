@@ -670,7 +670,7 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P5** Caffeine caches · @Cacheable/@CacheEvict/@Caching · after-commit eviction · cache tests
 - [x] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [ ] **P7** condition+meetup · multi-photo · saved · seller profile · reports · notifications · ratings · admin KPIs
-- [ ] **P8** Showcase seed data · DEMO.md · min-instances plan · (Flyway · rate limits · headers · logging · docs)
+- [~] **P8** (subset done 2026-10-05) rate limits · route code-splitting · OG tags + favicon · hosting headers (no CSP) · README + DEMO.md. Not done: Flyway, structured logging, API docs, seed script (seeded by hand)
 
 ## Report template (end of every phase)
 
