@@ -171,8 +171,11 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(normalizeEmail(request.email()), request.password()));
-        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
+        return issueTokens((UserPrincipal) authentication.getPrincipal());
+    }
 
+    /** A fresh access and refresh token pair for an already-authenticated user. */
+    public AuthResponse issueTokens(UserPrincipal user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user),
