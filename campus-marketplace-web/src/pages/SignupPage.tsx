@@ -7,7 +7,7 @@ import Alert from '../components/Alert'
 import AuthLayout from '../components/AuthLayout'
 import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
-import { isValidBdPhone, PHONE_ERROR, PHONE_HINT } from '../lib'
+import { LINK_CLASS, isValidBdPhone, PHONE_ERROR, PHONE_HINT } from '../lib'
 
 export default function SignupPage() {
   useDocumentTitle('Sign up')
@@ -48,7 +48,7 @@ export default function SignupPage() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="link">
+          <Link to="/login" className={LINK_CLASS}>
             Log in
           </Link>
         </>

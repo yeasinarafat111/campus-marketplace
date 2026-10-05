@@ -1,14 +1,24 @@
+import { Star } from 'lucide-react'
 import type { Listing } from '../api/listings'
-import { formatCategory } from '../lib'
+import Badge from './ui/Badge'
 
-/** Flat tags: category always, plus status flags. Featured is a paid placement so it gets the gold treatment. */
-export default function ListingBadges({ listing }: { listing: Listing }) {
+/**
+ * Status flags for a listing. Featured is the paid placement (gold). Reserved is amber, Sold is gray, and
+ * "Available" (green) is only shown when `showAvailable` is set, e.g. on the detail page.
+ */
+export default function ListingBadges({ listing, showAvailable = false }: { listing: Listing; showAvailable?: boolean }) {
+  const available = listing.status === 'ACTIVE' && !listing.reserved
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {listing.featured && <span className="tag tag-featured">Featured</span>}
-      {listing.status === 'SOLD' && <span className="tag tag-sold">Sold</span>}
-      {listing.reserved && <span className="tag tag-reserved">Reserved</span>}
-      <span className="tag">{formatCategory(listing.category)}</span>
-    </div>
+    <>
+      {listing.featured && listing.status === 'ACTIVE' && (
+        <Badge tone="featured">
+          <Star className="size-3 fill-current" aria-hidden />
+          Featured
+        </Badge>
+      )}
+      {listing.status === 'SOLD' && <Badge tone="muted">Sold</Badge>}
+      {listing.status === 'ACTIVE' && listing.reserved && <Badge tone="warning">Reserved</Badge>}
+      {showAvailable && available && <Badge tone="success">Available</Badge>}
+    </>
   )
 }

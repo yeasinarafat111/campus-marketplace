@@ -1,7 +1,10 @@
-export default function SubmitButton({ loading, children }: { loading: boolean; children: React.ReactNode }) {
+import type { ReactNode } from 'react'
+import Button from './ui/Button'
+
+export default function SubmitButton({ loading, children }: { loading: boolean; children: ReactNode }) {
   return (
-    <button type="submit" disabled={loading} className="btn btn-primary w-full">
-      {loading ? 'Please wait…' : children}
-    </button>
+    <Button type="submit" size="lg" loading={loading} className="w-full">
+      {children}
+    </Button>
   )
 }

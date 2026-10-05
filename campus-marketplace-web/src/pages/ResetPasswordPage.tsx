@@ -7,6 +7,7 @@ import Alert from '../components/Alert'
 import AuthLayout from '../components/AuthLayout'
 import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
+import { LINK_CLASS } from '../lib'
 
 export default function ResetPasswordPage() {
   useDocumentTitle('Reset password')
@@ -47,7 +48,7 @@ export default function ResetPasswordPage() {
       title="Reset password"
       subtitle="Enter the code from your email and choose a new password."
       footer={
-        <Link to="/login" className="link">
+        <Link to="/login" className={LINK_CLASS}>
           Back to log in
         </Link>
       }
@@ -70,7 +71,7 @@ export default function ResetPasswordPage() {
         <SubmitButton loading={loading}>Reset password</SubmitButton>
         <p className="text-center text-sm text-muted">
           Didn't get a code?{' '}
-          <Link to={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`} className="link">
+          <Link to={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`} className={LINK_CLASS}>
             Request another
           </Link>
         </p>

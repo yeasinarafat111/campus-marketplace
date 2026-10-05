@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import { changePassword, updateProfile } from '../api/users'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import FormField from '../components/FormField'
-import SubmitButton from '../components/SubmitButton'
+import Avatar from '../components/ui/Avatar'
+import Button from '../components/ui/Button'
 import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate, isValidBdPhone, PHONE_ERROR, PHONE_HINT } from '../lib'
@@ -13,8 +15,14 @@ export default function ProfilePage() {
   const { user } = useAuth()
   if (!user) return null
   return (
-    <div className="max-w-xl">
-      <h1 className="text-5xl leading-none">Profile</h1>
+    <div className="mx-auto max-w-xl space-y-8">
+      <div className="flex items-center gap-4">
+        <Avatar name={user.fullName} size="lg" />
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold tracking-tight text-navy">{user.fullName}</h1>
+          <p className="text-sm text-muted">Member since {formatDate(user.createdAt)}</p>
+        </div>
+      </div>
       <ProfileForm />
       <PasswordForm />
     </div>
@@ -26,7 +34,6 @@ function ProfileForm() {
   const [fullName, setFullName] = useState(user?.fullName ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   if (!user) return null
@@ -34,7 +41,6 @@ function ProfileForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setSuccess('')
     setFieldErrors({})
     const errors: Record<string, string> = {}
     if (!fullName.trim()) errors.fullName = 'Full name is required'
@@ -54,7 +60,7 @@ function ProfileForm() {
       setUser(data)
       setFullName(data.fullName)
       setPhone(data.phone ?? '')
-      setSuccess('Profile saved.')
+      toast.success('Profile saved')
     } catch (err) {
       const parsed = parseApiError(err)
       setError(parsed.message)
@@ -65,24 +71,18 @@ function ProfileForm() {
   }
 
   return (
-    <section className="mt-6 border-t-2 border-navy pt-6" aria-labelledby="profile-heading">
-      <h2 id="profile-heading" className="text-3xl">Your details</h2>
-      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-        <dt className="text-muted">Email</dt>
-        <dd>{user.email}</dd>
-        <dt className="text-muted">Member since</dt>
-        <dd>{formatDate(user.createdAt)}</dd>
-      </dl>
+    <section aria-labelledby="profile-heading" className="rounded-xl border border-line p-5 sm:p-6">
+      <h2 id="profile-heading" className="text-lg font-bold text-navy">Your details</h2>
       <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
-        {success && <Alert kind="success">{success}</Alert>}
         {error && <Alert kind="error">{error}</Alert>}
+        <FormField label="Email" name="email" value={user.email} readOnly disabled hint="Your email can't be changed." />
         <FormField label="Full name" name="fullName" autoComplete="name" required maxLength={100}
           value={fullName} onChange={(e) => setFullName(e.target.value)} error={fieldErrors.fullName} />
         <FormField label="Phone number" name="phone" type="tel" inputMode="tel" autoComplete="tel"
           placeholder={PHONE_HINT} required maxLength={20} value={phone}
-          onChange={(e) => setPhone(e.target.value)} error={fieldErrors.phone} />
-        <p className="-mt-2 text-sm text-muted">Only the other side of a reservation or order can see it.</p>
-        <SubmitButton loading={loading}>Save changes</SubmitButton>
+          onChange={(e) => setPhone(e.target.value)} error={fieldErrors.phone}
+          hint="Only the other side of a reservation or order can see it." />
+        <Button type="submit" loading={loading}>Save changes</Button>
       </form>
     </section>
   )
@@ -92,7 +92,6 @@ function PasswordForm() {
   const { applyTokens } = useAuth()
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirm: '' })
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
@@ -102,7 +101,6 @@ function PasswordForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setSuccess('')
     setFieldErrors({})
     if (form.newPassword !== form.confirm) {
       setFieldErrors({ confirm: 'Passwords do not match' })
@@ -117,7 +115,7 @@ function PasswordForm() {
       // The change logs out every other session; these tokens keep this one going.
       applyTokens(data)
       setForm({ currentPassword: '', newPassword: '', confirm: '' })
-      setSuccess('Password changed. You have been logged out everywhere else.')
+      toast.success('Password changed', { description: 'You have been logged out everywhere else.' })
     } catch (err) {
       const parsed = parseApiError(err)
       setError(parsed.message)
@@ -128,22 +126,20 @@ function PasswordForm() {
   }
 
   return (
-    <section className="mt-10 border-t-2 border-navy pt-6" aria-labelledby="password-heading">
-      <h2 id="password-heading" className="text-3xl">Change password</h2>
+    <section aria-labelledby="password-heading" className="rounded-xl border border-line p-5 sm:p-6">
+      <h2 id="password-heading" className="text-lg font-bold text-navy">Change password</h2>
       <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
-        {success && <Alert kind="success">{success}</Alert>}
         {error && <Alert kind="error">{error}</Alert>}
         <FormField label="Current password" name="currentPassword" type="password"
           autoComplete="current-password" required value={form.currentPassword}
           onChange={update('currentPassword')} error={fieldErrors.currentPassword} />
         <FormField label="New password" name="newPassword" type="password" autoComplete="new-password"
           required minLength={8} maxLength={72} value={form.newPassword} onChange={update('newPassword')}
-          error={fieldErrors.newPassword} />
+          error={fieldErrors.newPassword} hint="8 to 72 characters." />
         <FormField label="Confirm new password" name="confirm" type="password" autoComplete="new-password"
           required minLength={8} maxLength={72} value={form.confirm} onChange={update('confirm')}
           error={fieldErrors.confirm} />
-        <p className="text-sm text-muted">8 to 72 characters.</p>
-        <SubmitButton loading={loading}>Change password</SubmitButton>
+        <Button type="submit" loading={loading}>Change password</Button>
       </form>
     </section>
   )

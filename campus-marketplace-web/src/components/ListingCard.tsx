@@ -1,32 +1,30 @@
 import { Link } from 'react-router-dom'
 import type { Listing } from '../api/listings'
-import { formatPrice } from '../lib'
+import { cx, formatCategory, timeAgo } from '../lib'
 import ListingBadges from './ListingBadges'
+import ImageWithFallback from './ui/ImageWithFallback'
+import PriceTag from './ui/PriceTag'
 
-/** One cell of the listings board. Cells are separated by rules (the grid supplies the outer border). */
-export default function ListingCard({ listing }: { listing: Listing }) {
+/** Photo first: a square image, then the price, a one-line title and muted meta text. */
+export default function ListingCard({ listing, className }: { listing: Listing; className?: string }) {
   return (
-    <Link
-      to={`/listings/${listing.id}`}
-      className={`group flex flex-col border-b border-r border-rule p-4 hover:bg-white ${
-        listing.featured ? 'border-t-4 border-t-gold bg-gold/10' : ''
-      }`}
-    >
-      {listing.imageUrl ? (
-        <img src={listing.imageUrl} alt="" className="aspect-[4/3] w-full border border-rule object-cover" loading="lazy" />
-      ) : (
-        <div className="flex aspect-[4/3] w-full items-center justify-center border border-dashed border-rule text-sm text-muted">
-          No photo
+    <Link to={`/listings/${listing.id}`} className={cx('group block min-w-0', className)}>
+      <div className="relative">
+        <ImageWithFallback
+          src={listing.imageUrl}
+          alt={listing.title}
+          category={listing.category}
+          className="aspect-square w-full rounded-xl transition-opacity duration-150 group-hover:opacity-90"
+        />
+        <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+          <ListingBadges listing={listing} />
         </div>
-      )}
-      <p className="mt-3 font-display text-3xl font-bold leading-none text-navy">{formatPrice(listing.price)}</p>
-      <h3 className="mt-1 line-clamp-2 font-sans text-base font-semibold text-ink group-hover:underline">
-        {listing.title}
-      </h3>
-      <div className="mt-2">
-        <ListingBadges listing={listing} />
       </div>
-      <p className="mt-auto pt-3 text-sm text-muted">Sold by {listing.owner.fullName}</p>
+      <PriceTag price={listing.price} size="md" className="mt-2 block" />
+      <h3 className="truncate text-sm text-ink group-hover:underline">{listing.title}</h3>
+      <p className="truncate text-xs text-muted">
+        {formatCategory(listing.category)} · {timeAgo(listing.createdAt)}
+      </p>
     </Link>
   )
 }

@@ -1,72 +1,95 @@
-import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { adminDeleteListing, deactivateUser, listUsers, reactivateUser } from '../api/admin'
+import { toast } from 'sonner'
+import { adminDeleteListing, deactivateUser, listUsers, reactivateUser, type AdminUser } from '../api/admin'
 import { parseApiError } from '../api/errors'
-import { searchListings } from '../api/listings'
+import { searchListings, type Listing } from '../api/listings'
 import Alert from '../components/Alert'
 import Pagination from '../components/Pagination'
+import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/Dialog'
+import PriceTag from '../components/ui/PriceTag'
 import { useAuth } from '../hooks/useAuth'
-import { useFetch } from '../hooks/useFetch'
-import { formatPrice } from '../lib'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+
+const th = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted'
+const td = 'px-4 py-3 text-sm'
+
+type Pending =
+  | { kind: 'deactivate'; user: AdminUser }
+  | { kind: 'delete'; listing: Listing }
 
 export default function AdminDashboardPage() {
   useDocumentTitle('Admin dashboard')
   const { user: me } = useAuth()
+  const queryClient = useQueryClient()
   const [userPage, setUserPage] = useState(0)
   const [listingPage, setListingPage] = useState(0)
-  const users = useFetch(() => listUsers({ page: userPage, size: 10 }), [userPage])
+  const [pending, setPending] = useState<Pending | null>(null)
+
+  const users = useQuery({ queryKey: ['admin', 'users', userPage], queryFn: () => listUsers({ page: userPage, size: 10 }) })
   // The backend has no admin-wide listing query; the public search (active listings) is what's available.
-  const listings = useFetch(() => searchListings({ page: listingPage, size: 10 }), [listingPage])
-  const [actionError, setActionError] = useState('')
+  const listings = useQuery({ queryKey: ['admin', 'listings', listingPage], queryFn: () => searchListings({ page: listingPage, size: 10 }) })
 
-  async function run(action: () => Promise<unknown>, reload: () => void) {
-    setActionError('')
-    try {
-      await action()
-      reload()
-    } catch (e) {
-      setActionError(parseApiError(e).message)
-    }
-  }
+  const onError = (e: unknown) => toast.error(parseApiError(e).message)
 
-  const th = 'px-3 py-2 text-left text-sm font-semibold text-navy'
-  const td = 'px-3 py-2 text-sm'
+  const toggleUser = useMutation({
+    mutationFn: ({ user, active }: { user: AdminUser; active: boolean }) => (active ? deactivateUser(user.id) : reactivateUser(user.id)),
+    onSuccess: (_r, { user, active }) => {
+      toast.success(`${user.email} ${active ? 'deactivated' : 'reactivated'}`)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      queryClient.invalidateQueries({ queryKey: ['listings'] })
+    },
+    onError,
+    onSettled: () => setPending(null),
+  })
+
+  const removeListing = useMutation({
+    mutationFn: (listing: Listing) => adminDeleteListing(listing.id),
+    onSuccess: (_r, listing) => {
+      toast.success(`“${listing.title}” deleted`)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'listings'] })
+      queryClient.invalidateQueries({ queryKey: ['listings'] })
+    },
+    onError,
+    onSettled: () => setPending(null),
+  })
+
+  const busy = toggleUser.isPending || removeListing.isPending
 
   return (
     <div className="space-y-10">
-      <h1 className="border-b-2 border-navy pb-2 text-5xl leading-none">Admin dashboard</h1>
-      {(actionError || users.error || listings.error) && (
-        <Alert kind="error">{actionError || users.error || listings.error}</Alert>
-      )}
+      <h1 className="text-2xl font-bold tracking-tight text-navy">Admin dashboard</h1>
+      {(users.error || listings.error) && <Alert kind="error">{parseApiError(users.error ?? listings.error).message}</Alert>}
 
-      <section>
-        <h2 className="mb-3 text-3xl">Users</h2>
-        <div className="overflow-x-auto border-y border-rule bg-white">
-          <table className="min-w-full divide-y divide-rule">
-            <thead>
-              <tr><th className={th}>Name</th><th className={th}>Email</th><th className={th}>Role</th><th className={th}>Status</th><th className={th}></th></tr>
+      <section aria-labelledby="users-heading">
+        <h2 id="users-heading" className="mb-3 text-lg font-bold text-navy">Users</h2>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="min-w-full divide-y divide-line">
+            <thead className="bg-surface">
+              <tr><th className={th}>Name</th><th className={th}>Email</th><th className={th}>Role</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th></tr>
             </thead>
-            <tbody className="divide-y divide-rule">
+            <tbody className="divide-y divide-line">
               {users.data?.content.map((u) => (
                 <tr key={u.id}>
                   <td className={td}>{u.fullName}</td>
                   <td className={td}>{u.email}</td>
                   <td className={td}>{u.role}</td>
                   <td className={td}>
-                    {!u.active ? <span className="font-semibold text-danger">Deactivated</span> : !u.enabled ? <span className="font-semibold text-gold-ink">Unverified</span> : 'Active'}
+                    {!u.active ? <Badge tone="danger">Deactivated</Badge> : !u.enabled ? <Badge tone="warning">Unverified</Badge> : <Badge tone="success">Active</Badge>}
                   </td>
                   <td className={`${td} text-right`}>
                     {u.id !== me?.id &&
                       (u.active ? (
-                        <button className="link-danger py-1"
-                          onClick={() => window.confirm(`Deactivate ${u.email}?`) && run(() => deactivateUser(u.id), users.reload)}>
+                        <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'deactivate', user: u })}>
                           Deactivate
-                        </button>
+                        </Button>
                       ) : (
-                        <button className="link py-1" onClick={() => run(() => reactivateUser(u.id), users.reload)}>
+                        <Button variant="secondary" size="sm" onClick={() => toggleUser.mutate({ user: u, active: false })}>
                           Reactivate
-                        </button>
+                        </Button>
                       ))}
                   </td>
                 </tr>
@@ -77,24 +100,23 @@ export default function AdminDashboardPage() {
         {users.data && <Pagination page={users.data.page} totalPages={users.data.totalPages} onChange={setUserPage} />}
       </section>
 
-      <section>
-        <h2 className="mb-3 text-3xl">Listings</h2>
-        <div className="overflow-x-auto border-y border-rule bg-white">
-          <table className="min-w-full divide-y divide-rule">
-            <thead>
-              <tr><th className={th}>Title</th><th className={th}>Price</th><th className={th}>Seller</th><th className={th}></th></tr>
+      <section aria-labelledby="listings-heading">
+        <h2 id="listings-heading" className="mb-3 text-lg font-bold text-navy">Listings</h2>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="min-w-full divide-y divide-line">
+            <thead className="bg-surface">
+              <tr><th className={th}>Title</th><th className={th}>Price</th><th className={th}>Seller</th><th className={th}><span className="sr-only">Actions</span></th></tr>
             </thead>
-            <tbody className="divide-y divide-rule">
+            <tbody className="divide-y divide-line">
               {listings.data?.content.map((l) => (
                 <tr key={l.id}>
-                  <td className={td}><Link to={`/listings/${l.id}`} className="link">{l.title}</Link></td>
-                  <td className={td}>{formatPrice(l.price)}</td>
+                  <td className={td}><Link to={`/listings/${l.id}`} className="font-medium text-navy hover:underline">{l.title}</Link></td>
+                  <td className={td}><PriceTag price={l.price} size="sm" className="font-medium" /></td>
                   <td className={td}>{l.owner.fullName}</td>
                   <td className={`${td} text-right`}>
-                    <button className="link-danger py-1"
-                      onClick={() => window.confirm(`Delete "${l.title}"?`) && run(() => adminDeleteListing(l.id), listings.reload)}>
+                    <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
                       Delete
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -103,6 +125,24 @@ export default function AdminDashboardPage() {
         </div>
         {listings.data && <Pagination page={listings.data.page} totalPages={listings.data.totalPages} onChange={setListingPage} />}
       </section>
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && !busy && setPending(null)}
+        title={pending?.kind === 'delete' ? 'Delete this listing?' : 'Deactivate this user?'}
+        description={
+          pending?.kind === 'delete'
+            ? `“${pending.listing.title}” will be removed for good.`
+            : pending ? `${pending.user.email} will be logged out and their listings hidden.` : ''
+        }
+        confirmLabel={pending?.kind === 'delete' ? 'Delete' : 'Deactivate'}
+        danger
+        loading={busy}
+        onConfirm={() => {
+          if (pending?.kind === 'delete') removeListing.mutate(pending.listing)
+          else if (pending) toggleUser.mutate({ user: pending.user, active: true })
+        }}
+      />
     </div>
   )
 }

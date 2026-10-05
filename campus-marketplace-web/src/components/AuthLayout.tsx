@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import Logo from './Logo'
 
+/** Centered card on a quiet background, shared by login, signup, verify and password reset. */
 export default function AuthLayout({
   title,
   subtitle,
@@ -13,24 +14,15 @@ export default function AuthLayout({
   footer?: ReactNode
 }) {
   return (
-    <div className="grid min-h-screen md:grid-cols-[2fr_3fr]">
-      <aside className="on-navy flex flex-col justify-between border-b-4 border-gold bg-navy px-6 py-6 text-white md:border-b-0 md:border-r-4 md:px-10 md:py-12">
-        <Link to="/listings" className="font-display text-3xl font-bold tracking-wide text-white">
-          Campus Marketplace
-        </Link>
-        <p className="mt-10 hidden max-w-xs font-display text-4xl font-semibold leading-tight text-white md:block">
-          Textbooks, gadgets and dorm gear, from students on your campus.
-        </p>
-        <p className="hidden text-sm text-white/70 md:block">Sign-up is open to seu.edu.bd email addresses.</p>
-      </aside>
-      <main className="flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md">
-          <h1 className="text-4xl">{title}</h1>
-          {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
-          <div className="mt-6 border-t-2 border-navy pt-6">{children}</div>
-          {footer && <div className="mt-6 border-t border-rule pt-4 text-sm text-muted">{footer}</div>}
-        </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4 py-10">
+      <Logo className="mb-6" />
+      <main className="w-full max-w-md rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-8">
+        <h1 className="text-2xl font-bold tracking-tight text-navy">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        <div className="mt-6">{children}</div>
+        {footer && <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">{footer}</div>}
       </main>
+      <p className="mt-6 text-sm text-muted">Only @seu.edu.bd students</p>
     </div>
   )
 }

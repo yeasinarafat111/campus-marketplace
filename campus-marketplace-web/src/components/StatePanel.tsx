@@ -1,12 +1,24 @@
+import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import EmptyState from './ui/EmptyState'
 
 /** Full-width message block for empty, not-found and failure states. */
-export default function StatePanel({ title, children, actions }: { title: string; children?: ReactNode; actions?: ReactNode }) {
+export default function StatePanel({
+  icon,
+  title,
+  children,
+  actions,
+}: {
+  icon: LucideIcon
+  title: string
+  children?: ReactNode
+  actions?: ReactNode
+}) {
   return (
-    <div className="mx-auto max-w-xl border-t-4 border-navy pt-6">
-      <h1 className="text-4xl">{title}</h1>
-      {children && <div className="mt-3 text-lg text-muted">{children}</div>}
-      {actions && <div className="mt-6 flex flex-wrap gap-3">{actions}</div>}
+    <div className="mx-auto max-w-xl py-8">
+      <EmptyState icon={icon} title={title} action={actions}>
+        {children}
+      </EmptyState>
     </div>
   )
 }

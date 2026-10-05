@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { parseApiError } from '../api/errors'
 import { createCheckoutSession, type PaymentPurpose } from '../api/payments'
 import { rememberCheckoutListing } from '../lib'
+import Button, { type ButtonProps } from './ui/Button'
 
-interface Props {
+interface Props extends Omit<ButtonProps, 'onClick' | 'loading'> {
   listingId: number
   purpose: PaymentPurpose
-  className: string
-  children: React.ReactNode
 }
 
 /** Creates a Stripe Checkout session for the listing and sends the browser to Stripe. */
-export default function CheckoutButton({ listingId, purpose, className, children }: Props) {
+export default function CheckoutButton({ listingId, purpose, children, ...buttonProps }: Props) {
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   // Coming back with the browser's Back button restores this page from cache with the button still busy.
   useEffect(() => {
@@ -23,7 +22,6 @@ export default function CheckoutButton({ listingId, purpose, className, children
   }, [])
 
   async function onClick() {
-    setError('')
     setLoading(true)
     try {
       const session = await createCheckoutSession({ listingId, purpose })
@@ -31,21 +29,14 @@ export default function CheckoutButton({ listingId, purpose, className, children
       rememberCheckoutListing(listingId)
       window.location.href = session.url // leave the button busy while the browser navigates
     } catch (e) {
-      setError(parseApiError(e).message)
+      toast.error(parseApiError(e).message)
       setLoading(false)
     }
   }
 
   return (
-    <div>
-      <button type="button" onClick={onClick} disabled={loading} className={className}>
-        {loading ? 'Redirecting to Stripe…' : children}
-      </button>
-      {error && (
-        <p role="alert" className="mt-2 border-l-4 border-danger bg-white px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </div>
+    <Button onClick={onClick} loading={loading} {...buttonProps}>
+      {loading ? 'Redirecting to Stripe…' : children}
+    </Button>
   )
 }

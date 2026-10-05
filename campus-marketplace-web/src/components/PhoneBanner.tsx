@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -33,16 +34,16 @@ export default function PhoneBanner() {
   }
 
   return (
-    <div role="status" className="border-b border-gold bg-gold/15">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 text-sm text-ink">
+    <div role="status" className="border-b border-warning-soft bg-warning-soft">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 text-sm text-warning">
         <p className="flex-1">
           Add your phone number so buyers can reach you.{' '}
-          <Link to="/profile" className="link font-semibold">
+          <Link to="/profile" className="font-semibold underline underline-offset-2">
             Go to your profile
           </Link>
         </p>
-        <button type="button" onClick={dismiss} aria-label="Dismiss" className="px-2 text-lg leading-none text-muted hover:text-ink">
-          ×
+        <button type="button" onClick={dismiss} aria-label="Dismiss" className="rounded-md p-1 transition-colors hover:bg-black/5">
+          <X className="size-4" aria-hidden />
         </button>
       </div>
     </div>

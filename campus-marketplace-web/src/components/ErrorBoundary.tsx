@@ -1,4 +1,7 @@
+import { TriangleAlert } from 'lucide-react'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import StatePanel from './StatePanel'
+import Button from './ui/Button'
 
 /** Last-resort fallback so a rendering bug shows a message instead of a blank page. */
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -15,14 +18,14 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <div className="mx-auto max-w-xl px-4 py-16">
-        <div className="border-t-4 border-danger pt-6">
-          <h1 className="text-4xl">Something went wrong</h1>
-          <p className="mt-3 text-lg text-muted">The page hit an unexpected error. Reloading usually fixes it.</p>
-          <button className="btn btn-primary mt-6" onClick={() => window.location.reload()}>
-            Reload the page
-          </button>
-        </div>
+      <div className="px-4 py-16">
+        <StatePanel
+          icon={TriangleAlert}
+          title="Something went wrong"
+          actions={<Button onClick={() => window.location.reload()}>Reload the page</Button>}
+        >
+          The page hit an unexpected error. Reloading usually fixes it.
+        </StatePanel>
       </div>
     )
   }

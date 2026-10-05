@@ -13,7 +13,7 @@ export interface Listing {
   imageUrl: string | null
   status: ListingStatus
   createdAt: string
-  owner: { id: number; fullName: string }
+  owner: { id: number; fullName: string; memberSince: string }
   featured: boolean
   featuredUntil: string | null
   reserved: boolean
@@ -41,6 +41,10 @@ export interface SearchParams {
   category?: string
   minPrice?: string
   maxPrice?: string
+  ownerId?: number
+  /** True: only currently featured listings. */
+  featured?: boolean
+  /** Omit for the default order: featured listings first, then newest. */
   sort?: 'createdAt' | 'price' | 'title'
   direction?: 'asc' | 'desc'
   page?: number
@@ -52,7 +56,7 @@ export const searchListings = (params: SearchParams) =>
 
 export const getListing = (id: string | number) => client.get<Listing>(`/api/listings/${id}`).then((r) => r.data)
 
-export const myListings = (params: { status?: ListingStatus; page?: number; size?: number }) =>
+export const myListings = (params: { status?: ListingStatus; reserved?: boolean; page?: number; size?: number }) =>
   client.get<Page<Listing>>('/api/listings/mine', { params }).then((r) => r.data)
 
 /** Multipart so an optional image file can be uploaded (the backend sends it to Cloudinary). */

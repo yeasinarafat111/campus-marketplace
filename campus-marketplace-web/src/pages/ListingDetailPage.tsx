@@ -1,73 +1,167 @@
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { getListing } from '../api/listings'
-import StatePanel from '../components/StatePanel'
-import NotFoundPage from './NotFoundPage'
-import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { getListing, type Listing } from '../api/listings'
+import { parseApiError } from '../api/errors'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
+import Avatar from '../components/ui/Avatar'
+import { buttonClasses } from '../components/ui/buttonClasses'
+import ImageWithFallback from '../components/ui/ImageWithFallback'
+import PriceTag from '../components/ui/PriceTag'
+import Skeleton from '../components/ui/Skeleton'
+import StatePanel from '../components/StatePanel'
 import { useAuth } from '../hooks/useAuth'
-import { useFetch } from '../hooks/useFetch'
-import { formatPrice } from '../lib'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { formatCategory, formatMonthYear, timeAgo } from '../lib'
+import NotFoundPage from './NotFoundPage'
+import { isAxiosError } from 'axios'
 
 export default function ListingDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { data: listing, error, errorStatus, loading } = useFetch(() => getListing(id!), [id])
+  const { data: listing, error, isPending } = useQuery({
+    queryKey: ['listing', id],
+    queryFn: () => getListing(id!),
+  })
 
   useDocumentTitle(listing?.title ?? 'Listing')
 
-  if (loading) return <p className="text-muted">Loading…</p>
-  if (errorStatus === 404) return <NotFoundPage what="listing" />
-  if (error) {
+  if (isPending) return <DetailSkeleton />
+  if (isAxiosError(error) && error.response?.status === 404) return <NotFoundPage what="listing" />
+  if (error || !listing) {
     return (
-      <StatePanel title="This listing couldn't be loaded" actions={<Link to="/listings" className="btn btn-primary">Back to the board</Link>}>
-        {error}
+      <StatePanel
+        icon={TriangleAlert}
+        title="This listing couldn't be loaded"
+        actions={<Link to="/listings" className={buttonClasses()}>Back to browsing</Link>}
+      >
+        {parseApiError(error).message}
       </StatePanel>
     )
   }
-  if (!listing) return null
 
   const isOwner = user?.id === listing.owner.id
 
   return (
-    <div>
-      <Link to="/listings" className="link text-sm">
-        Back to the board
+    <div className="pb-20 lg:pb-0">
+      <Link to="/listings" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-navy">
+        <ArrowLeft className="size-4" aria-hidden />
+        Back to browsing
       </Link>
-      <div className={`mt-4 grid gap-8 md:grid-cols-2 ${listing.featured ? 'border-t-4 border-gold pt-6' : 'border-t-2 border-navy pt-6'}`}>
-        {listing.imageUrl ? (
-          <img src={listing.imageUrl} alt={listing.title} className="w-full border border-rule object-cover" />
-        ) : (
-          <div className="flex h-72 items-center justify-center border border-dashed border-rule text-muted">No photo</div>
-        )}
-        <div>
-          <ListingBadges listing={listing} />
-          <h1 className="mt-3 text-4xl leading-tight sm:text-5xl">{listing.title}</h1>
-          <p className="mt-2 font-display text-5xl font-bold text-navy">{formatPrice(listing.price)}</p>
 
-          {listing.description && (
-            <p className="mt-5 whitespace-pre-line border-t border-rule pt-5 text-lg leading-relaxed">{listing.description}</p>
-          )}
+      <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <ImageWithFallback
+          src={listing.imageUrl}
+          alt={listing.title}
+          category={listing.category}
+          className="aspect-square max-h-[640px] w-full rounded-xl sm:aspect-[4/3]"
+        />
 
-          <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 border-t border-rule pt-5 text-sm">
-            <dt className="text-muted">Seller</dt>
-            <dd className="font-semibold">{listing.owner.fullName}</dd>
-            <dt className="text-muted">Listed</dt>
-            <dd>{new Date(listing.createdAt).toLocaleDateString()}</dd>
-          </dl>
+        <aside className="lg:row-span-2 lg:self-start">
+          <div className="space-y-5 lg:sticky lg:top-24">
+            <div className="rounded-xl border border-line bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap gap-1.5">
+                <ListingBadges listing={listing} showAvailable />
+              </div>
+              <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-ink">{listing.title}</h1>
+              <PriceTag price={listing.price} size="lg" className="mt-2 block" />
+              <p className="mt-1 text-sm text-muted">
+                {formatCategory(listing.category)} · Listed {timeAgo(listing.createdAt)}
+              </p>
 
-          <div className="mt-6 flex flex-wrap items-start gap-3 border-t border-rule pt-5">
-            <ListingPaymentActions listing={listing} />
-            {isOwner && (
-              <Link to={`/listings/${listing.id}/edit`} className="btn btn-outline">
-                Edit listing
-              </Link>
-            )}
+              <div className="mt-5 hidden flex-col gap-2 lg:flex">
+                <ListingActions listing={listing} isOwner={isOwner} block />
+              </div>
+              {listing.status === 'ACTIVE' && listing.reserved && !isOwner && (
+                <p className="mt-3 text-sm text-muted">Another student has already paid a deposit to hold this item.</p>
+              )}
+            </div>
+
+            <SellerCard listing={listing} />
+            <SafetyTips />
           </div>
-          {listing.status === 'ACTIVE' && listing.reserved && !isOwner && (
-            <p className="mt-3 text-sm text-muted">Another student has already paid a deposit to hold this item.</p>
+        </aside>
+
+        <section aria-labelledby="description-heading">
+          <h2 id="description-heading" className="text-lg font-bold text-navy">Description</h2>
+          {listing.description ? (
+            <p className="mt-2 whitespace-pre-line leading-relaxed text-ink">{listing.description}</p>
+          ) : (
+            <p className="mt-2 text-muted">The seller didn't add a description.</p>
           )}
+          <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-line pt-4 text-sm">
+            <dt className="text-muted">Category</dt>
+            <dd>{formatCategory(listing.category)}</dd>
+          </dl>
+        </section>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-3 lg:hidden">
+        <PriceTag price={listing.price} size="lg" className="mr-auto" />
+        <ListingActions listing={listing} isOwner={isOwner} />
+      </div>
+    </div>
+  )
+}
+
+function ListingActions({ listing, isOwner, block = false }: { listing: Listing; isOwner: boolean; block?: boolean }) {
+  return (
+    <>
+      <ListingPaymentActions listing={listing} block={block} />
+      {isOwner && listing.status === 'ACTIVE' && (
+        <Link to={`/listings/${listing.id}/edit`} className={buttonClasses({ variant: 'secondary', size: 'lg', className: block ? 'w-full' : '' })}>
+          Edit
+        </Link>
+      )}
+      {listing.status === 'SOLD' && <p className="text-sm font-medium text-muted">This item has been sold.</p>}
+    </>
+  )
+}
+
+function SellerCard({ listing }: { listing: Listing }) {
+  return (
+    <section aria-labelledby="seller-heading" className="rounded-xl border border-line bg-white p-5">
+      <h2 id="seller-heading" className="sr-only">Seller</h2>
+      <div className="flex items-center gap-3">
+        <Avatar name={listing.owner.fullName} size="lg" />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">{listing.owner.fullName}</p>
+          <p className="text-sm text-muted">Member since {formatMonthYear(listing.owner.memberSince)}</p>
         </div>
+      </div>
+      <Link to={`/listings?seller=${listing.owner.id}`} className="mt-4 inline-block text-sm font-semibold text-navy underline-offset-2 hover:underline">
+        See their other listings
+      </Link>
+    </section>
+  )
+}
+
+function SafetyTips() {
+  return (
+    <section aria-labelledby="safety-heading" className="rounded-xl bg-surface p-5">
+      <h2 id="safety-heading" className="flex items-center gap-2 text-sm font-bold text-navy">
+        <ShieldCheck className="size-4" aria-hidden />
+        Stay safe
+      </h2>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+        <li>Meet on campus, in a public place.</li>
+        <li>Inspect the item before you pay the balance.</li>
+        <li>Keep payments and chat on Campus Marketplace.</li>
+      </ul>
+    </section>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading listing" className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <Skeleton className="aspect-[4/3] w-full rounded-xl" />
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-12 w-full" />
       </div>
     </div>
   )

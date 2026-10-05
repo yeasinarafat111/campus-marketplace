@@ -4,9 +4,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { resendOtp, verifyOtp } from '../api/auth'
 import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
+import Button from '../components/ui/Button'
 import AuthLayout from '../components/AuthLayout'
 import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
+import { LINK_CLASS } from '../lib'
 
 export default function VerifyOtpPage() {
   useDocumentTitle('Verify your email')
@@ -53,7 +55,7 @@ export default function VerifyOtpPage() {
       title="Verify your email"
       subtitle="Enter the 6-digit code we emailed you."
       footer={
-        <Link to="/login" className="link">
+        <Link to="/login" className={LINK_CLASS}>
           Back to log in
         </Link>
       }
@@ -67,9 +69,9 @@ export default function VerifyOtpPage() {
           pattern="\d{6}" maxLength={6} required value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} error={fieldErrors.code} />
         <SubmitButton loading={loading}>Verify</SubmitButton>
-        <button type="button" onClick={onResend} className="link w-full text-center text-sm">
+        <Button variant="ghost" onClick={onResend} className="w-full">
           Resend code
-        </button>
+        </Button>
       </form>
     </AuthLayout>
   )

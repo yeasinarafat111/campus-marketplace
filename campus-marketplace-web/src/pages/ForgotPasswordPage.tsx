@@ -7,6 +7,7 @@ import Alert from '../components/Alert'
 import AuthLayout from '../components/AuthLayout'
 import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
+import { LINK_CLASS } from '../lib'
 
 export default function ForgotPasswordPage() {
   useDocumentTitle('Forgot password')
@@ -35,7 +36,7 @@ export default function ForgotPasswordPage() {
       title="Forgot password"
       subtitle="We'll email you a code to reset your password."
       footer={
-        <Link to="/login" className="link">
+        <Link to="/login" className={LINK_CLASS}>
           Back to log in
         </Link>
       }

@@ -1,19 +1,18 @@
-import type { InputHTMLAttributes } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
+import Field from './ui/Field'
+import { Input } from './ui/Input'
 
-interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+interface FormFieldProps extends ComponentProps<'input'> {
   label: string
   error?: string
+  hint?: ReactNode
 }
 
-export default function FormField({ label, error, id, ...props }: FormFieldProps) {
-  const inputId = id ?? props.name
+/** A labelled text input with an error line: the common case of Field + Input. */
+export default function FormField({ label, error, hint, id, ...props }: FormFieldProps) {
   return (
-    <div>
-      <label htmlFor={inputId} className="block text-sm font-semibold text-navy">
-        {label}
-      </label>
-      <input id={inputId} aria-invalid={error ? true : undefined} className="input mt-1" {...props} />
-      {error && <p className="mt-1 text-sm text-danger">{error}</p>}
-    </div>
+    <Field label={label} error={error} hint={hint}>
+      <Input id={id ?? props.name} {...props} />
+    </Field>
   )
 }

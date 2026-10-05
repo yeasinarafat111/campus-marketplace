@@ -1,83 +1,65 @@
 @import "tailwindcss";
 
 @theme {
+  /* Brand */
   --color-navy: #1b2a4a;
   --color-navy-deep: #131e36;
+  --color-navy-soft: #eef1f7; /* tint for hover/selected states on white */
+  /* The one warm accent: only the Featured badge and the Feature button. */
   --color-gold: #d9a441;
   --color-gold-deep: #c58f2e;
-  --color-gold-ink: #7a5710; /* gold-family text that stays readable on paper */
-  --color-paper: #faf8f3;
-  --color-ink: #1f2328;
-  --color-muted: #5a6270;
-  --color-sage: #3f6f69;
-  --color-sage-deep: #305a55;
-  --color-rule: #d8d2c4;
-  --color-danger: #a3302b;
+  --color-gold-ink: #7a5710; /* gold-family text that stays readable on white */
+  /* Neutrals */
+  --color-ink: #111827;
+  --color-muted: #6b7280;
+  --color-line: #e5e7eb;
+  --color-surface: #f6f7f9;
+  /* Status */
+  --color-success: #15803d;
+  --color-success-soft: #dcfce7;
+  --color-warning: #92400e;
+  --color-warning-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
 
-  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --font-sans: "Source Sans 3", system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 }
 
 @layer base {
   body {
-    @apply bg-paper font-sans text-ink antialiased;
-  }
-  h1,
-  h2,
-  h3,
-  h4 {
-    @apply font-display font-semibold text-navy;
+    @apply bg-white font-sans text-ink antialiased;
   }
   :focus-visible {
-    outline: 3px solid var(--color-navy);
+    outline: 2px solid var(--color-navy);
     outline-offset: 2px;
   }
   .on-navy :focus-visible {
-    outline-color: var(--color-gold);
+    outline-color: white;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-@layer components {
-  .btn {
-    @apply inline-flex items-center justify-center rounded-sm border border-transparent px-4 py-2 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+@layer utilities {
+  .skeleton {
+    background: linear-gradient(90deg, #eceef1 25%, #f6f7f9 37%, #eceef1 63%);
+    background-size: 400% 100%;
+    animation: var(--animate-shimmer);
   }
-  .btn-sm {
-    @apply px-3 py-1 text-sm;
+  .scrollbar-none {
+    scrollbar-width: none;
   }
-  .btn-primary {
-    @apply bg-navy text-white hover:bg-navy-deep;
-  }
-  .btn-gold {
-    @apply bg-gold text-navy hover:bg-gold-deep;
-  }
-  .btn-sage {
-    @apply bg-sage text-white hover:bg-sage-deep;
-  }
-  .btn-outline {
-    @apply border-navy bg-transparent text-navy hover:bg-navy hover:text-white;
-  }
-  .link {
-    @apply text-navy underline underline-offset-2 hover:text-sage;
-  }
-  .link-danger {
-    @apply text-danger underline underline-offset-2 hover:text-ink;
-  }
-  .input {
-    @apply block w-full rounded-sm border border-rule bg-white px-3 py-2 text-base text-ink placeholder:text-muted/70;
-  }
-  .input[aria-invalid="true"] {
-    @apply border-danger;
-  }
-  .tag {
-    @apply inline-block rounded-sm border border-rule bg-white px-2 py-0.5 text-sm text-muted;
-  }
-  .tag-featured {
-    @apply border-gold bg-gold font-semibold text-navy;
-  }
-  .tag-reserved {
-    @apply border-sage text-sage;
-  }
-  .tag-sold {
-    @apply border-ink bg-ink text-white;
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

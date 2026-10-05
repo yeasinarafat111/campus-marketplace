@@ -6,6 +6,7 @@ import Alert from '../components/Alert'
 import AuthLayout from '../components/AuthLayout'
 import FormField from '../components/FormField'
 import SubmitButton from '../components/SubmitButton'
+import { LINK_CLASS } from '../lib'
 import { useAuth } from '../hooks/useAuth'
 
 export default function LoginPage() {
@@ -43,7 +44,7 @@ export default function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="link">
+          <Link to="/signup" className={LINK_CLASS}>
             Create an account
           </Link>
         </>
@@ -58,7 +59,7 @@ export default function LoginPage() {
         <FormField label="Password" name="password" type="password" autoComplete="current-password" required
           value={password} onChange={(e) => setPassword(e.target.value)} />
         <div className="text-right text-sm">
-          <Link to="/forgot-password" className="link">
+          <Link to="/forgot-password" className={LINK_CLASS}>
             Forgot password?
           </Link>
         </div>
