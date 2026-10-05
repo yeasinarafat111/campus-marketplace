@@ -25,6 +25,9 @@ export default function Navbar() {
             <NavLink to="/listings/new" className={linkClass}>
               Sell something
             </NavLink>
+            <NavLink to="/profile" className={linkClass}>
+              Profile
+            </NavLink>
           </>
         )}
         {user?.role === 'ADMIN' && (

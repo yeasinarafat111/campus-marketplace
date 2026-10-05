@@ -22,3 +22,12 @@ export const recallCheckoutListing = (): string | null => {
     return null
   }
 }
+
+/** Same rule as the backend's @BangladeshiPhone: 01XXXXXXXXX, 8801… or +8801…, operator digit 3-9. */
+export const isValidBdPhone = (raw: string) => /^(\+?880|0)1[3-9]\d{8}$/.test(raw.replace(/[\s-]/g, ''))
+
+export const PHONE_HINT = '01XXXXXXXXX'
+export const PHONE_ERROR = 'Enter a valid Bangladeshi mobile number, like 01XXXXXXXXX'
+
+export const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login as loginRequest } from '../api/auth'
+import { login as loginRequest, type AuthResponse } from '../api/auth'
 import { refreshAccessToken, setSessionExpiredHandler } from '../api/client'
 import { getRefreshToken, setAccessToken, setRefreshToken } from '../api/tokens'
 import { getMe, type User } from '../api/users'
@@ -73,9 +73,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate('/login', { replace: true })
   }, [clearSession, navigate])
 
+  const applyTokens = useCallback((tokens: AuthResponse) => {
+    setAccessToken(tokens.accessToken)
+    setRefreshToken(tokens.refreshToken)
+    setToken(tokens.accessToken)
+  }, [])
+
   const value = useMemo(
-    () => ({ user, accessToken, isAuthenticated: user !== null, isLoading, login, logout }),
-    [user, accessToken, isLoading, login, logout],
+    () => ({
+      user,
+      accessToken,
+      isAuthenticated: user !== null,
+      isLoading,
+      login,
+      logout,
+      setUser,
+      applyTokens,
+    }),
+    [user, accessToken, isLoading, login, logout, applyTokens],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

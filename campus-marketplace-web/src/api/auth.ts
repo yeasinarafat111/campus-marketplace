@@ -11,7 +11,7 @@ export interface MessageResponse {
   message: string
 }
 
-export const signup = (body: { fullName: string; email: string; password: string }) =>
+export const signup = (body: { fullName: string; email: string; phone: string; password: string }) =>
   client.post<{ id: number; fullName: string; email: string; message: string }>('/api/auth/signup', body)
 
 export const verifyOtp = (body: { email: string; code: string }) =>
