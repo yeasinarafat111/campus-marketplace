@@ -80,7 +80,10 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-bold tracking-tight text-navy">Admin dashboard</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-navy">Admin dashboard</h1>
+        <Link to="/admin/revenue" className="text-sm font-semibold text-navy underline-offset-2 hover:underline">Revenue report</Link>
+      </div>
       {(users.error || listings.error) && <Alert kind="error">{parseApiError(users.error ?? listings.error).message}</Alert>}
 
       <section aria-labelledby="problems-heading">

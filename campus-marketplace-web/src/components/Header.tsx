@@ -101,9 +101,14 @@ function UserMenu() {
           Profile
         </DropdownMenuLink>
         {user.role === 'ADMIN' && (
-          <DropdownMenuLink to="/admin" icon={<LayoutDashboard className="size-4 text-muted" aria-hidden />}>
-            Admin
-          </DropdownMenuLink>
+          <>
+            <DropdownMenuLink to="/admin" icon={<LayoutDashboard className="size-4 text-muted" aria-hidden />}>
+              Admin
+            </DropdownMenuLink>
+            <DropdownMenuLink to="/admin/revenue" icon={<LayoutDashboard className="size-4 text-muted" aria-hidden />}>
+              Revenue
+            </DropdownMenuLink>
+          </>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={logout} icon={<LogOut className="size-4 text-muted" aria-hidden />}>
@@ -191,6 +196,7 @@ export default function Header() {
               <MobileLink to="/sales" onClick={closeNav}>Sales</MobileLink>
               <MobileLink to="/profile" onClick={closeNav}>Profile</MobileLink>
               {user?.role === 'ADMIN' && <MobileLink to="/admin" onClick={closeNav}>Admin</MobileLink>}
+              {user?.role === 'ADMIN' && <MobileLink to="/admin/revenue" onClick={closeNav}>Revenue</MobileLink>}
             </>
           ) : (
             <>

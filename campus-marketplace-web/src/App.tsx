@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
 import { ChatSocketProvider } from './context/ChatSocketProvider'
 import AdminDashboardPage from './pages/AdminDashboardPage'
+import AdminRevenuePage from './pages/AdminRevenuePage'
 import CreateEditListingPage from './pages/CreateEditListingPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ListingDetailPage from './pages/ListingDetailPage'
@@ -56,6 +57,7 @@ export default function App() {
 
               <Route element={<AdminRoute />}>
                 <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/revenue" element={<AdminRevenuePage />} />
               </Route>
 
               <Route path="*" element={<NotFoundPage />} />
