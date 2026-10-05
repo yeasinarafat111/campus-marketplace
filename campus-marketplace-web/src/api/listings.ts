@@ -199,3 +199,6 @@ export const unsaveListing = (id: number) => client.delete(`/api/listings/${id}/
 export const getSavedIds = () => client.get<number[]>('/api/users/me/saved/ids').then((r) => r.data)
 export const getSaved = (params: { page?: number; size?: number }) =>
   client.get<Page<Listing>>('/api/users/me/saved', { params }).then((r) => r.data)
+
+export const reportListing = (id: number, reason: string, details: string) =>
+  client.post(`/api/listings/${id}/report`, { reason, details: details.trim() || null }).then(() => undefined)

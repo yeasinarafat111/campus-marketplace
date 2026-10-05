@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { adminDeleteListing, deactivateUser, listOrders, listUsers, markPaidOut, reactivateUser, resolveProblem, type AdminOrder, type AdminUser } from '../api/admin'
+import { REPORT_REASON_LABELS, adminDeleteListing, deactivateUser, listOrders, listReports, listUsers, markPaidOut, reactivateUser, resolveProblem, resolveReport, type AdminOrder, type AdminReport, type AdminUser, type ReportAction } from '../api/admin'
 import { parseApiError } from '../api/errors'
 import { searchListings, type Listing } from '../api/listings'
 import Alert from '../components/Alert'
@@ -21,6 +21,7 @@ const td = 'px-4 py-3 text-sm'
 type Pending =
   | { kind: 'deactivate'; user: AdminUser }
   | { kind: 'delete'; listing: Listing }
+  | { kind: 'report'; report: AdminReport; action: Exclude<ReportAction, 'RESOLVE'> }
 
 export default function AdminDashboardPage() {
   useDocumentTitle('Admin dashboard')
@@ -76,7 +77,19 @@ export default function AdminDashboardPage() {
     onError,
   })
 
-  const busy = toggleUser.isPending || removeListing.isPending
+  const reports = useQuery({ queryKey: ['admin', 'reports'], queryFn: () => listReports({ status: 'OPEN', size: 20 }) })
+  const closeReport = useMutation({
+    mutationFn: ({ report, action }: { report: AdminReport; action: ReportAction }) => resolveReport(report.id, action),
+    onSuccess: (_r, { action }) => {
+      toast.success(action === 'DELETE_LISTING' ? 'Listing deleted' : action === 'DEACTIVATE_USER' ? 'User deactivated' : 'Report resolved')
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+      queryClient.invalidateQueries({ queryKey: ['listings'] })
+    },
+    onError,
+    onSettled: () => setPending(null),
+  })
+
+  const busy = toggleUser.isPending || removeListing.isPending || closeReport.isPending
 
   return (
     <div className="space-y-10">
@@ -85,6 +98,36 @@ export default function AdminDashboardPage() {
         <Link to="/admin/revenue" className="text-sm font-semibold text-navy underline-offset-2 hover:underline">Revenue report</Link>
       </div>
       {(users.error || listings.error) && <Alert kind="error">{parseApiError(users.error ?? listings.error).message}</Alert>}
+
+      <section aria-labelledby="reports-heading">
+        <h2 id="reports-heading" className="mb-3 text-lg font-bold text-navy">
+          Reported listings {reports.data && reports.data.totalElements > 0 && <Badge tone="warning">{reports.data.totalElements}</Badge>}
+        </h2>
+        {reports.data && reports.data.content.length === 0 && <p className="rounded-xl bg-surface px-4 py-6 text-sm text-muted">No open reports.</p>}
+        <ul className="space-y-3">
+          {reports.data?.content.map((r) => (
+            <li key={r.id} className="rounded-xl border border-warning-soft bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-semibold text-ink">
+                  {r.listing ? <Link to={`/listings/${r.listing.id}`} className="underline-offset-2 hover:underline">{r.listingTitle}</Link> : r.listingTitle}
+                  <span className="ml-2 font-normal text-muted">· {REPORT_REASON_LABELS[r.reason]}</span>
+                </p>
+                <span className="text-xs text-muted">{formatDate(r.createdAt)}</span>
+              </div>
+              {r.details && <p className="mt-2 rounded-lg bg-surface p-3 text-sm text-ink">“{r.details}”</p>}
+              <p className="mt-2 text-sm text-muted">
+                Reported by {r.reporter.fullName}. Seller: {r.reportedUser ? r.reportedUser.fullName : 'account removed'}
+                {r.reportedUser && !r.reportedUser.active && ' (deactivated)'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" loading={closeReport.isPending} onClick={() => closeReport.mutate({ report: r, action: 'RESOLVE' })}>Resolve, no action</Button>
+                {r.listing && <Button size="sm" variant="danger" onClick={() => setPending({ kind: 'report', report: r, action: 'DELETE_LISTING' })}>Delete listing</Button>}
+                {r.reportedUser?.active && <Button size="sm" variant="danger" onClick={() => setPending({ kind: 'report', report: r, action: 'DEACTIVATE_USER' })}>Deactivate seller</Button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section aria-labelledby="problems-heading">
         <h2 id="problems-heading" className="mb-3 text-lg font-bold text-navy">
@@ -211,20 +254,33 @@ export default function AdminDashboardPage() {
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(open) => !open && !busy && setPending(null)}
-        title={pending?.kind === 'delete' ? 'Delete this listing?' : 'Deactivate this user?'}
-        description={
-          pending?.kind === 'delete'
-            ? `“${pending.listing.title}” will be removed for good.`
-            : pending ? `${pending.user.email} will be logged out and their listings hidden.` : ''
-        }
-        confirmLabel={pending?.kind === 'delete' ? 'Delete' : 'Deactivate'}
+        title={confirmTitle(pending)}
+        description={confirmText(pending)}
+        confirmLabel={pending?.kind === 'delete' || (pending?.kind === 'report' && pending.action === 'DELETE_LISTING') ? 'Delete' : 'Deactivate'}
         danger
         loading={busy}
         onConfirm={() => {
           if (pending?.kind === 'delete') removeListing.mutate(pending.listing)
+          else if (pending?.kind === 'report') closeReport.mutate({ report: pending.report, action: pending.action })
           else if (pending) toggleUser.mutate({ user: pending.user, active: true })
         }}
       />
     </div>
   )
+}
+
+function confirmTitle(p: Pending | null) {
+  if (p?.kind === 'delete' || (p?.kind === 'report' && p.action === 'DELETE_LISTING')) return 'Delete this listing?'
+  return 'Deactivate this user?'
+}
+
+function confirmText(p: Pending | null) {
+  if (!p) return ''
+  if (p.kind === 'delete') return `“${p.listing.title}” will be removed for good.`
+  if (p.kind === 'report') {
+    return p.action === 'DELETE_LISTING'
+      ? `“${p.report.listingTitle}” will be removed for good and the open reports about it closed.`
+      : `${p.report.reportedUser?.fullName ?? 'This seller'} will be logged out and their listings hidden. Their other open reports are closed.`
+  }
+  return `${p.user.email} will be logged out and their listings hidden.`
 }

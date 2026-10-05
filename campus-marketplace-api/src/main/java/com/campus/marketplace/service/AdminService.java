@@ -30,6 +30,7 @@ public class AdminService {
     private final ListingRepository listingRepository;
     private final CurrentUserProvider currentUser;
     private final PaymentService paymentService;
+    private final ListingImageService imageService;
 
     /** All users, newest first. */
     @Transactional(readOnly = true)
@@ -110,6 +111,8 @@ public class AdminService {
         if (listing.isReserved()) {
             detachFromListing(paymentService.refundDeposit(listing));
         }
+        imageService.deleteFilesAfterCommit(listing.getImages().stream().map(i -> i.getPublicId())
+                .filter(Objects::nonNull).toList());
         listingRepository.delete(listing);
         log.info("Admin {} deleted listing {}", currentUser.requireId(), id);
     }

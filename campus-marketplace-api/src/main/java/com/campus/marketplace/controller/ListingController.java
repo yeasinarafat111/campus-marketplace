@@ -7,17 +7,20 @@ import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.PostingFeeQuote;
 import com.campus.marketplace.dto.ReorderImagesRequest;
+import com.campus.marketplace.dto.ReportRequest;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingImageService;
 import com.campus.marketplace.service.ListingService;
+import com.campus.marketplace.service.ReportService;
 import com.campus.marketplace.service.SavedListingService;
 import com.campus.marketplace.service.PaymentService;
 import com.campus.marketplace.service.PublicListingReader;
 import com.campus.marketplace.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -55,6 +58,7 @@ public class ListingController {
     private final PublicListingReader publicListingReader;
     private final ListingImageService imageService;
     private final SavedListingService savedListingService;
+    private final ReportService reportService;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -110,6 +114,13 @@ public class ListingController {
     @GetMapping("/{id}")
     public ListingResponse get(@PathVariable Long id) {
         return listingService.get(id);
+    }
+
+    /** Reports a listing to the admins. One report per user per listing. */
+    @PostMapping("/{id}/report")
+    public ResponseEntity<Void> report(@PathVariable Long id, @Valid @RequestBody ReportRequest request) {
+        reportService.report(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     /** Bookmarks the listing for the caller. Idempotent. */

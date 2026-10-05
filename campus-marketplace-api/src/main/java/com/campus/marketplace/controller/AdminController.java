@@ -1,6 +1,13 @@
 package com.campus.marketplace.controller;
 
 import com.campus.marketplace.dto.AdminOrderResponse;
+import com.campus.marketplace.dto.AdminReportResponse;
+import com.campus.marketplace.dto.ResolveReportRequest;
+import com.campus.marketplace.entity.ReportStatus;
+import com.campus.marketplace.service.ReportService;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import com.campus.marketplace.dto.AdminUserResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.service.AdminService;
@@ -23,6 +30,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final OrderService orderService;
+    private final ReportService reportService;
 
     @GetMapping("/users")
     public PageResponse<AdminUserResponse> listUsers(@RequestParam(defaultValue = "0") int page,
@@ -57,6 +65,20 @@ public class AdminController {
     @PatchMapping("/orders/{id}/payout")
     public AdminOrderResponse payout(@PathVariable Long id) {
         return orderService.markPaidOut(id);
+    }
+
+    /** The moderation queue. {@code status} is OPEN (default, oldest first) or RESOLVED. */
+    @GetMapping("/reports")
+    public PageResponse<AdminReportResponse> reports(@RequestParam(defaultValue = "OPEN") ReportStatus status,
+                                                     @RequestParam(defaultValue = "0") int page,
+                                                     @RequestParam(defaultValue = "20") int size) {
+        return reportService.list(status, page, size);
+    }
+
+    /** Closes a report: RESOLVE (no action), DELETE_LISTING or DEACTIVATE_USER. */
+    @PostMapping("/reports/{id}/resolve")
+    public AdminReportResponse resolveReport(@PathVariable Long id, @Valid @RequestBody ResolveReportRequest request) {
+        return reportService.resolve(id, request.action());
     }
 
     @DeleteMapping("/listings/{id}")

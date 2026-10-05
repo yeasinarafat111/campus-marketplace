@@ -8,6 +8,7 @@ import MessageSellerButton from '../components/MessageSellerButton'
 import Avatar from '../components/ui/Avatar'
 import { buttonClasses } from '../components/ui/buttonClasses'
 import { PhotoGallery } from '../components/PhotoGallery'
+import ReportListingButton from '../components/ReportListingButton'
 import SaveButton from '../components/SaveButton'
 import PriceTag from '../components/ui/PriceTag'
 import Skeleton from '../components/ui/Skeleton'
@@ -81,6 +82,7 @@ export default function ListingDetailPage() {
 
             <SellerCard listing={listing} />
             <SafetyTips />
+            {!isOwner && <ReportListingButton listingId={listing.id} />}
           </div>
         </aside>
 
