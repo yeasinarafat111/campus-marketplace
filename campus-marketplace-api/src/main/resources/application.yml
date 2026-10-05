@@ -69,6 +69,9 @@ app:
   registration:
     # Only emails at exactly this domain may sign up (no subdomains).
     allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:seu.edu.bd}
+  # In-process caches (see CacheConfig). Set false to turn caching off.
+  cache:
+    enabled: ${APP_CACHE_ENABLED:true}
   # Where emails link to. Set FRONTEND_URL for any environment that isn't production.
   frontend-url: ${FRONTEND_URL:https://campusmarketplacebackend.web.app}
   mail:

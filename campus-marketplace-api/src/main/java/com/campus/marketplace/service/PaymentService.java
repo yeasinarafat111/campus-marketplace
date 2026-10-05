@@ -1,5 +1,6 @@
 package com.campus.marketplace.service;
 
+import com.campus.marketplace.config.CacheNames;
 import com.campus.marketplace.config.PaymentProperties;
 import com.campus.marketplace.dto.CheckoutSessionRequest;
 import com.campus.marketplace.dto.CheckoutSessionResponse;
@@ -22,6 +23,7 @@ import com.campus.marketplace.repository.UserRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -52,11 +54,13 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
+    private final ListingCacheEvictor cacheEvictor;
 
     /**
      * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
      * Read-only; nothing is reserved or charged.
      */
+    @Cacheable(cacheNames = CacheNames.FEE_QUOTE, key = "#listingId")
     @Transactional(readOnly = true)
     public FeeQuote quote(Long listingId) {
         Listing listing = listingRepository.findWithOwnerById(listingId)
@@ -177,7 +181,10 @@ public class PaymentService {
         if (!listing.isReserved() || expiresAt == null || expiresAt.isAfter(Instant.now())) {
             return listing;
         }
-        transactionTemplate.executeWithoutResult(tx -> listingRepository.releaseExpiredReservations(Instant.now()));
+        transactionTemplate.executeWithoutResult(tx -> {
+            listingRepository.releaseExpiredReservations(Instant.now());
+            cacheEvictor.evictAllListings();
+        });
         return listingRepository.findWithPartiesById(listing.getId()).orElse(listing);
     }
 
@@ -252,6 +259,10 @@ public class PaymentService {
             payment.setStripePaymentIntentId(paymentIntentId);
         }
 
+        if (payment.getListing() != null) {
+            // Whatever the payment does to the listing (featured, reserved, sold), cached copies go once this commits.
+            cacheEvictor.evictListing(payment.getListing().getId());
+        }
         Listing listing = payment.getListing() == null ? null
                 : listingRepository.findForUpdateById(payment.getListing().getId()).orElse(null);
         if (listing == null) {

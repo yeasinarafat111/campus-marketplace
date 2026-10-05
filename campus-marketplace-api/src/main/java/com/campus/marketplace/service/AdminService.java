@@ -1,5 +1,6 @@
 package com.campus.marketplace.service;
 
+import com.campus.marketplace.config.CacheNames;
 import com.campus.marketplace.dto.AdminUserResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.entity.User;
@@ -10,6 +11,8 @@ import com.campus.marketplace.repository.UserRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -46,6 +49,12 @@ public class AdminService {
      * refused, email verification can't re-enable it, and the user's listings are hidden from public
      * browsing. Idempotent. Admins can't deactivate themselves.
      */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.USER_PROFILE, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.LISTING_BY_ID, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.FEE_QUOTE, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CATEGORY_COUNTS, allEntries = true)})
     @Transactional
     public AdminUserResponse deactivateUser(Long id) {
         if (Objects.equals(id, currentUser.requireId())) {
@@ -64,6 +73,12 @@ public class AdminService {
      * Undoes {@link #deactivateUser}. Idempotent. Email verification status is left as it was, so an
      * account that was never verified still has to verify before logging in.
      */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.USER_PROFILE, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.LISTING_BY_ID, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.FEE_QUOTE, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CATEGORY_COUNTS, allEntries = true)})
     @Transactional
     public AdminUserResponse reactivateUser(Long id) {
         User user = userRepository.findById(id)
@@ -83,6 +98,11 @@ public class AdminService {
     }
 
     /** Hard delete, regardless of owner. A reserved item's deposit is refunded to the buyer first. */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.LISTING_BY_ID, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.FEE_QUOTE, key = "#id"),
+            @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CATEGORY_COUNTS, allEntries = true)})
     @Transactional
     public void deleteListing(Long id) {
         var listing = listingRepository.findForUpdateById(id)

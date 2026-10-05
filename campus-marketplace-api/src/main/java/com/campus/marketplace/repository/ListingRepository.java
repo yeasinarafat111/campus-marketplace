@@ -15,6 +15,7 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,6 +45,13 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
 
     @EntityGraph(attributePaths = "owner")
     Page<Listing> findByOwner(User owner, Pageable pageable);
+
+    /** Active listings per category, for sellers that haven't been deactivated. Categories with none are absent. */
+    @Query("""
+            select l.category, count(l) from Listing l
+            where l.status = com.campus.marketplace.entity.ListingStatus.ACTIVE and l.owner.active = true
+            group by l.category""")
+    List<Object[]> countActiveByCategory();
 
     /**
      * Frees every reservation whose time is up. A single conditional UPDATE, so it is safe to run on several

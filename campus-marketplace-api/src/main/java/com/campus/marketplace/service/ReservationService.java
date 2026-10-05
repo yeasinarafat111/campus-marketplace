@@ -1,5 +1,6 @@
 package com.campus.marketplace.service;
 
+import com.campus.marketplace.config.CacheNames;
 import com.campus.marketplace.config.PaymentProperties;
 import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.entity.Listing;
@@ -10,6 +11,8 @@ import com.campus.marketplace.repository.ListingRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ public class ReservationService {
     private final PaymentService paymentService;
     private final CurrentUserProvider currentUser;
     private final PaymentProperties paymentProperties;
+    private final ListingCacheEvictor cacheEvictor;
 
     /**
      * Seller only. Refunds the buyer's deposit through Stripe, then frees the item. The listing row is locked
@@ -36,6 +40,9 @@ public class ReservationService {
      * nothing is lost; if the commit then fails, a retry sends the same idempotency key, so Stripe returns the
      * original refund instead of paying twice.
      */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.LISTING_BY_ID, key = "#listingId"),
+            @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true)})
     @Transactional
     public ListingResponse cancelAsSeller(Long listingId) {
         Listing listing = lock(listingId);
@@ -53,6 +60,9 @@ public class ReservationService {
     }
 
     /** The buyer gives the item up. The deposit is not refunded (decision D5); the UI says so beforehand. */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.LISTING_BY_ID, key = "#listingId"),
+            @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true)})
     @Transactional
     public ListingResponse releaseAsBuyer(Long listingId) {
         Listing listing = lock(listingId);
@@ -85,6 +95,7 @@ public class ReservationService {
         int released = listingRepository.releaseExpiredReservations(now);
         if (released > 0) {
             log.info("Released {} expired reservation(s)", released);
+            cacheEvictor.evictAllListings();
         }
         return released;
     }

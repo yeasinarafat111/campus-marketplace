@@ -8,6 +8,7 @@ import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ListingStatus;
 import com.campus.marketplace.service.ListingService;
 import com.campus.marketplace.service.PaymentService;
+import com.campus.marketplace.service.PublicListingReader;
 import com.campus.marketplace.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Access rules: GET /api/listings and GET /api/listings/{id} are public (see SecurityConfig);
@@ -43,6 +46,7 @@ public class ListingController {
     private final ListingService listingService;
     private final PaymentService paymentService;
     private final ReservationService reservationService;
+    private final PublicListingReader publicListingReader;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -59,6 +63,18 @@ public class ListingController {
             @RequestParam(defaultValue = "desc") String direction) {
         return listingService.search(keyword, category, minPrice, maxPrice, ownerId, featured, page, size, sort,
                 direction);
+    }
+
+    /** The front page's Featured row. Public; cached for a minute. */
+    @GetMapping("/featured")
+    public List<ListingResponse> featured() {
+        return publicListingReader.featured();
+    }
+
+    /** Active listings per category, for the chips. Public; cached for five minutes. */
+    @GetMapping("/category-counts")
+    public Map<Category, Long> categoryCounts() {
+        return publicListingReader.categoryCounts();
     }
 
     // Declared before /{id} for readability; Spring prefers the literal path either way.

@@ -1,5 +1,6 @@
 package com.campus.marketplace.service;
 
+import com.campus.marketplace.config.CacheNames;
 import com.campus.marketplace.dto.AuthResponse;
 import com.campus.marketplace.dto.ChangePasswordRequest;
 import com.campus.marketplace.dto.CurrentUserResponse;
@@ -12,6 +13,8 @@ import com.campus.marketplace.repository.UserRepository;
 import com.campus.marketplace.security.CurrentUserProvider;
 import com.campus.marketplace.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +29,23 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserProvider currentUser;
     private final AuthService authService;
+    private final ListingCacheEvictor cacheEvictor;
 
     /** Loaded from the database: the principal doesn't carry the name or phone. */
+    @Cacheable(cacheNames = CacheNames.USER_PROFILE, key = "@currentUserProvider.requireId()")
     @Transactional(readOnly = true)
     public CurrentUserResponse getMe() {
         return CurrentUserResponse.from(loadCaller());
     }
 
+    @CachePut(cacheNames = CacheNames.USER_PROFILE, key = "#result.id()")
     @Transactional
     public CurrentUserResponse updateProfile(UpdateProfileRequest request) {
         User user = loadCaller();
-        if (request.fullName() != null) {
+        if (request.fullName() != null && !request.fullName().equals(user.getFullName())) {
             user.setFullName(request.fullName());
+            // The seller's name is part of every cached listing of theirs.
+            cacheEvictor.evictAllListings();
         }
         if (request.phone() != null && !request.phone().equals(user.getPhone())) {
             if (userRepository.existsByPhoneAndIdNot(request.phone(), user.getId())) {
