@@ -13,6 +13,15 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  health:
+    mail:
+      enabled: false
+
 app:
   jwt:
     secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzLW9ubHktMzJieXRlcyE=

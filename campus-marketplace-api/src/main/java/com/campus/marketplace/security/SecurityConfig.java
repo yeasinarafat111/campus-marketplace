@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/error").permitAll()
+                        // Liveness/readiness probe; the only actuator endpoint exposed (see application.yml).
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // Must come before the public rule below: "/api/listings/*" would also match "mine".
                         .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()

@@ -46,6 +46,17 @@ spring:
           timeout: ${MAIL_SMTP_TIMEOUT:10000}
           writetimeout: ${MAIL_SMTP_WRITE_TIMEOUT:10000}
 
+management:
+  endpoints:
+    web:
+      # Only the health check is exposed (for Cloud Run and uptime probes). Nothing else.
+      exposure:
+        include: health
+  health:
+    # Would open an SMTP connection on every probe and report DOWN whenever the mail host hiccups.
+    mail:
+      enabled: false
+
 server:
   port: ${SERVER_PORT:8080}
 

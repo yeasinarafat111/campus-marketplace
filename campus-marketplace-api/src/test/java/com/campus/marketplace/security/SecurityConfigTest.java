@@ -62,6 +62,20 @@ class SecurityConfigTest {
     }
 
     @Test
+    void actuatorHealth_isPublic() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    void otherActuatorEndpoints_areNotExposed() throws Exception {
+        mockMvc.perform(get("/actuator/env").header("Authorization", bearer(jwtService.generateAccessToken(admin))))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/actuator/env")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void protectedRoute_withoutToken_returns401Json() throws Exception {
         mockMvc.perform(get("/api/me"))
                 .andExpect(status().isUnauthorized())
