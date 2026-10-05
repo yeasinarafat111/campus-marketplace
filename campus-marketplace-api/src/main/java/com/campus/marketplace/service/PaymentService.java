@@ -57,6 +57,8 @@ public class PaymentService {
     private final TransactionTemplate transactionTemplate;
     private final ListingCacheEvictor cacheEvictor;
     private final PostingFeePolicy postingFeePolicy;
+    private final LedgerService ledgerService;
+    private final ReservationReleaseService releaseService;
 
     /**
      * The fees a signed-in user would pay for this listing right now, for the buttons on the listing page.
@@ -214,7 +216,11 @@ public class PaymentService {
             return listing;
         }
         transactionTemplate.executeWithoutResult(tx -> {
-            listingRepository.releaseExpiredReservations(Instant.now());
+            // Same release as the sweep (including booking the forfeited deposit), for just this listing.
+            listingRepository.findForUpdateById(listing.getId())
+                    .filter(l -> l.isReserved() && l.getReservationExpiresAt() != null
+                            && !l.getReservationExpiresAt().isAfter(Instant.now()))
+                    .ifPresent(releaseService::forfeitAndRelease);
             cacheEvictor.evictAllListings();
         });
         return listingRepository.findWithPartiesById(listing.getId()).orElse(listing);
@@ -287,6 +293,10 @@ public class PaymentService {
             return;
         }
         payment.setStatus(PaymentStatus.SUCCEEDED);
+        if (payment.getPurpose() == PaymentPurpose.FEATURE_LISTING) {
+            // The platform keeps a feature fee whatever happens next (even for a listing deleted meanwhile).
+            ledgerService.recordFeatureFee(payment, payment.getListing());
+        }
         if (paymentIntentId != null) {
             payment.setStripePaymentIntentId(paymentIntentId);
         }
@@ -344,6 +354,7 @@ public class PaymentService {
         }
         listing.setStatus(ListingStatus.ACTIVE);
         listing.setPostingFeeBasisCents(paidOn);
+        ledgerService.recordPostingFee(payment, listing);
         log.info("Listing {} published after its posting fee (payment {})", listing.getId(), payment.getId());
     }
 
@@ -424,6 +435,7 @@ public class PaymentService {
         }
         checkoutGateway.refund(paymentIntentId, "refund-payment-" + payment.getId());
         payment.setStatus(PaymentStatus.REFUNDED);
+        ledgerService.reverseRevenue(payment); // revenue this payment earned, if any, is taken back
         log.info("Payment {} ({} {}) refunded", payment.getId(), payment.getAmount(), payment.getCurrency());
     }
 

@@ -34,6 +34,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     boolean existsByPaymentId(Long paymentId);
 
+    /**
+     * What the platform still owes sellers: for every order not yet paid out and not cancelled, the whole price of an
+     * online sale (the platform collected deposit and balance) or just the deposit of a cash sale (the seller got
+     * the balance in person).
+     */
+    @Query("""
+            select coalesce(sum(case when o.paymentMethod = com.campus.marketplace.entity.PaymentMethod.CASH
+                                     then o.depositCents else o.itemPriceCents end), 0)
+            from Order o
+            where o.payoutStatus = com.campus.marketplace.entity.PayoutStatus.PENDING
+              and o.status <> com.campus.marketplace.entity.OrderStatus.CANCELLED""")
+    long sumOwedToSellers();
+
     /** Orders with an open problem report, oldest report first: the admin queue. */
     @EntityGraph(attributePaths = {"buyer", "seller"})
     Page<Order> findByProblemReportedAtIsNotNullAndStatus(OrderStatus status, Pageable pageable);

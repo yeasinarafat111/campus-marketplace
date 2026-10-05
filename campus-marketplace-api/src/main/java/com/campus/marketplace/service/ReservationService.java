@@ -42,6 +42,7 @@ public class ReservationService {
     private final CurrentUserProvider currentUser;
     private final PaymentProperties paymentProperties;
     private final ListingCacheEvictor cacheEvictor;
+    private final ReservationReleaseService releaseService;
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher events;
 
@@ -158,14 +159,14 @@ public class ReservationService {
         if (!Objects.equals(listing.getReservedBy().getId(), userId)) {
             throw new ForbiddenException("Only the student who reserved this item can release it");
         }
-        listing.clearReservation();
+        releaseService.forfeitAndRelease(listing); // the deposit becomes platform revenue
         log.info("Buyer {} released the reservation on listing {}; deposit kept", userId, listingId);
         return ListingResponse.from(listing, userId);
     }
 
     /**
      * Frees every reservation whose time is up, without refunding. Safe to run on several instances at once
-     * (see {@link ListingRepository#releaseExpiredReservations}). Reservations that predate expiry have no end
+     * (see {@link ListingRepository#findExpiredReservationsForUpdate}). Reservations that predate expiry have no end
      * time; they get one full window from now first, so they are never expired retroactively.
      *
      * @return how many reservations were released
@@ -177,7 +178,11 @@ public class ReservationService {
         if (backfilled > 0) {
             log.info("Gave {} older reservation(s) an expiry of {}", backfilled, paymentProperties.reservationDuration());
         }
-        int released = listingRepository.releaseExpiredReservations(now);
+        int released = 0;
+        for (Listing lapsed : listingRepository.findExpiredReservationsForUpdate(now)) {
+            releaseService.forfeitAndRelease(lapsed);
+            released++;
+        }
         if (released > 0) {
             log.info("Released {} expired reservation(s)", released);
             cacheEvictor.evictAllListings();
