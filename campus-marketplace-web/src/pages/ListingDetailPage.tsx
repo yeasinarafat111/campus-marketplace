@@ -7,7 +7,7 @@ import ListingPaymentActions from '../components/ListingPaymentActions'
 import MessageSellerButton from '../components/MessageSellerButton'
 import Avatar from '../components/ui/Avatar'
 import { buttonClasses } from '../components/ui/buttonClasses'
-import ImageWithFallback from '../components/ui/ImageWithFallback'
+import { PhotoGallery } from '../components/PhotoGallery'
 import PriceTag from '../components/ui/PriceTag'
 import Skeleton from '../components/ui/Skeleton'
 import StatePanel from '../components/StatePanel'
@@ -51,11 +51,10 @@ export default function ListingDetailPage() {
       </Link>
 
       <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <ImageWithFallback
-          src={listing.imageUrl}
-          alt={listing.title}
+        <PhotoGallery
+          photos={listing.images.length > 0 ? listing.images : listing.imageUrl ? [{ id: 0, url: listing.imageUrl, position: 0 }] : []}
+          title={listing.title}
           category={listing.category}
-          className="aspect-square max-h-[640px] w-full rounded-xl sm:aspect-[4/3]"
         />
 
         <aside className="lg:row-span-2 lg:self-start">

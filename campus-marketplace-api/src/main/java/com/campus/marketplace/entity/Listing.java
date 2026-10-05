@@ -1,5 +1,6 @@
 package com.campus.marketplace.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +12,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,12 +21,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "listings", indexes = {
@@ -36,7 +42,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"owner", "description", "reservedBy", "buyer"})
+@ToString(exclude = {"owner", "description", "reservedBy", "buyer", "images"})
 public class Listing {
 
     @Id
@@ -59,6 +65,13 @@ public class Listing {
 
     @Column(length = 500)
     private String imageUrl;
+
+    /** The photos in display order; the first is the cover (and is mirrored in {@link #imageUrl}). */
+    @OneToMany(mappedBy = "listing", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position asc")
+    @BatchSize(size = 50)
+    @Builder.Default
+    private List<ListingImage> images = new ArrayList<>();
 
     /** Optional. Column is item_condition because CONDITION is a reserved word in some SQL dialects. */
     @Enumerated(EnumType.STRING)
@@ -119,6 +132,23 @@ public class Listing {
      * dodge the fee); lowering is always fine. Null for listings from before posting fees, which are grandfathered.
      */
     private Long postingFeeBasisCents;
+
+    /** Adds a photo at the end. The caller keeps the cover in step with {@link #syncCover()}. */
+    public ListingImage addImage(String url, String publicId) {
+        ListingImage image = ListingImage.builder().listing(this).url(url).publicId(publicId).position(images.size()).build();
+        images.add(image);
+        return image;
+    }
+
+    /** Renumbers the photos 0..n-1 in their current order and makes the first the cover. */
+    public void syncCover() {
+        for (int i = 0; i < images.size(); i++) {
+            images.get(i).setPosition(i);
+        }
+        if (!images.isEmpty()) {
+            this.imageUrl = images.get(0).getUrl();
+        }
+    }
 
     public void clearReservation() {
         this.reservedBy = null;

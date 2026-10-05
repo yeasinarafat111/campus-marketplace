@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ImagePlus, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CATEGORIES, CONDITION_LABELS, ITEM_CONDITIONS, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, getPostingFee, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
+import { CATEGORIES, CONDITION_LABELS, ITEM_CONDITIONS, MEETUP_LABELS, MEETUP_SPOTS, addListingPhoto, createListing, getListing, getPostingFee, removeListingPhoto, reorderListingPhotos, updateListing, type Category, type Listing, type ListingInput, type ListingPhoto } from '../api/listings'
 import { parseApiError } from '../api/errors'
 import { createCheckoutSession } from '../api/payments'
 import Alert from '../components/Alert'
 import FormField from '../components/FormField'
+import { PhotoManager } from '../components/PhotoManager'
 import Button from '../components/ui/Button'
 import Field from '../components/ui/Field'
 import { Input, Select, Textarea } from '../components/ui/Input'
@@ -17,7 +17,6 @@ import { cx, formatCategory, formatCents, formatPrice, rememberCheckout } from '
 import NotFoundPage from './NotFoundPage'
 import { isAxiosError } from 'axios'
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // matches the backend's multipart limit
 const MAX_DESCRIPTION = 2000
 
 const empty: ListingInput = { title: '', description: '', price: '', category: 'OTHER', imageUrl: '', meetupSpot: '', itemCondition: '' }
@@ -52,12 +51,17 @@ function ListingForm({ existing }: { existing?: Listing }) {
         }
       : empty,
   )
-  const [image, setImage] = useState<File | null>(null)
+  // New listing: files chosen so far (uploaded with the form). Edit: the saved photos, changed immediately.
+  const [files, setFiles] = useState<File[]>([])
+  const previews = useMemo(() => files.map((f) => ({ key: `${f.name}-${f.size}-${f.lastModified}`, url: URL.createObjectURL(f) })), [files])
+  useEffect(() => () => previews.forEach((p) => URL.revokeObjectURL(p.url)), [previews])
+  const [photos, setPhotos] = useState<ListingPhoto[]>(existing?.images ?? [])
+  const [photoBusy, setPhotoBusy] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const save = useMutation({
-    mutationFn: () => (existing ? updateListing(existing.id, form) : createListing(form, image)),
+    mutationFn: () => (existing ? updateListing(existing.id, form) : createListing(form, files)),
     onSuccess: async (saved) => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       queryClient.invalidateQueries({ queryKey: ['my-listings'] })
@@ -101,6 +105,25 @@ function ListingForm({ existing }: { existing?: Listing }) {
     save.mutate()
   }
 
+  /** Runs a saved-photo change straight away; the server returns the listing with its photos in their new state. */
+  async function editPhotos(run: () => Promise<Listing | undefined>) {
+    setPhotoBusy(true)
+    setError('')
+    try {
+      const updated = await run()
+      if (updated) {
+        setPhotos(updated.images)
+        queryClient.invalidateQueries({ queryKey: ['listings'] })
+        queryClient.invalidateQueries({ queryKey: ['my-listings'] })
+        queryClient.invalidateQueries({ queryKey: ['listing', String(updated.id)] })
+      }
+    } catch (e) {
+      setError(parseApiError(e).message)
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
   const price = Number(form.price)
   const priceValid = form.price.trim() !== '' && Number.isFinite(price) && price >= 0
   // The fee comes from the server, so the page never works out an amount itself.
@@ -117,10 +140,31 @@ function ListingForm({ existing }: { existing?: Listing }) {
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {error && <Alert kind="error">{error}</Alert>}
 
-        {isEdit ? (
-          <ImageUrlField value={form.imageUrl ?? ''} category={form.category} onChange={set('imageUrl')} error={fieldErrors.imageUrl} />
+        {existing ? (
+          <PhotoManager
+            items={photos.map((p) => ({ key: p.id, url: p.url }))}
+            busy={photoBusy}
+            onError={setError}
+            onAdd={(added) => editPhotos(async () => {
+              let latest: Listing | undefined
+              for (const f of added) latest = await addListingPhoto(existing.id, f)
+              return latest
+            })}
+            onRemove={(i) => editPhotos(() => removeListingPhoto(existing.id, photos[i].id))}
+            onMove={(from, to) => {
+              const ids = photos.map((p) => p.id)
+              ids.splice(to, 0, ids.splice(from, 1)[0])
+              return editPhotos(() => reorderListingPhotos(existing.id, ids))
+            }}
+          />
         ) : (
-          <ImageDropzone file={image} onChange={setImage} onError={setError} />
+          <PhotoManager
+            items={previews}
+            onError={setError}
+            onAdd={(added) => setFiles((f) => [...f, ...added])}
+            onRemove={(i) => setFiles((f) => f.filter((_, j) => j !== i))}
+            onMove={(from, to) => setFiles((f) => { const next = [...f]; next.splice(to, 0, next.splice(from, 1)[0]); return next })}
+          />
         )}
 
         <FormField label="Title" name="title" required maxLength={120} value={form.title}
@@ -179,76 +223,6 @@ function ListingForm({ existing }: { existing?: Listing }) {
           {isEdit ? 'Save changes' : postingFee.data?.applies ? 'Continue to payment' : 'Post listing'}
         </Button>
       </form>
-    </div>
-  )
-}
-
-function ImageDropzone({ file, onChange, onError }: { file: File | null; onChange: (f: File | null) => void; onError: (m: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
-  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
-
-  function accept(f: File | undefined) {
-    if (!f) return
-    if (!f.type.startsWith('image/')) return onError('Please choose an image file.')
-    if (f.size > MAX_IMAGE_BYTES) return onError('Image must be 5 MB or smaller.')
-    onError('')
-    onChange(f)
-  }
-
-  function onDrop(e: DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    accept(e.dataTransfer.files[0])
-  }
-
-  if (preview) {
-    return (
-      <div>
-        <p className="mb-1.5 text-sm font-medium text-ink">Photo</p>
-        <div className="relative overflow-hidden rounded-xl">
-          <img src={preview} alt="Preview of your photo" className="aspect-[4/3] w-full object-cover" />
-          <button type="button" onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = '' }}
-            aria-label="Remove photo" className="absolute right-2 top-2 rounded-full bg-white p-2 text-ink shadow transition-colors hover:bg-surface">
-            <X className="size-4" aria-hidden />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <p id="photo-label" className="mb-1.5 text-sm font-medium text-ink">Photo <span className="font-normal text-muted">(optional)</span></p>
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        className={cx(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-10 text-center transition-colors duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-navy',
-          dragging ? 'border-navy bg-navy-soft' : 'border-line bg-surface hover:border-gray-300',
-        )}
-      >
-        <ImagePlus className="size-8 text-muted" aria-hidden />
-        <span className="text-sm font-semibold text-ink">Drop a photo here, or click to choose</span>
-        <span className="text-xs text-muted">JPG or PNG, up to 5 MB</span>
-        <input ref={inputRef} type="file" accept="image/*" aria-labelledby="photo-label" className="sr-only"
-          onChange={(e) => accept(e.target.files?.[0])} />
-      </label>
-    </div>
-  )
-}
-
-/** The backend can only change a listing's image through its URL on edit (PUT is JSON-only). */
-function ImageUrlField({ value, category, onChange, error }: { value: string; category: Category; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; error?: string }) {
-  return (
-    <div className="space-y-3">
-      {value && /^https?:\/\//.test(value) && (
-        <img src={value} alt="Current photo" className="aspect-[4/3] w-full rounded-xl bg-surface object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-      )}
-      <FormField label="Photo URL" name="imageUrl" type="url" placeholder="https://…" value={value} onChange={onChange} error={error}
-        hint={`Leave empty to show the ${formatCategory(category).toLowerCase()} icon instead.`} />
     </div>
   )
 }

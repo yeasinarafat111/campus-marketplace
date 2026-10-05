@@ -6,9 +6,11 @@ import com.campus.marketplace.dto.ListingResponse;
 import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.dto.PostingFeeQuote;
+import com.campus.marketplace.dto.ReorderImagesRequest;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ItemCondition;
 import com.campus.marketplace.entity.ListingStatus;
+import com.campus.marketplace.service.ListingImageService;
 import com.campus.marketplace.service.ListingService;
 import com.campus.marketplace.service.PaymentService;
 import com.campus.marketplace.service.PublicListingReader;
@@ -50,6 +52,7 @@ public class ListingController {
     private final PaymentService paymentService;
     private final ReservationService reservationService;
     private final PublicListingReader publicListingReader;
+    private final ListingImageService imageService;
 
     @GetMapping
     public PageResponse<ListingResponse> search(
@@ -107,6 +110,23 @@ public class ListingController {
         return listingService.get(id);
     }
 
+    /** Adds a photo (multipart field {@code image}), up to five. Owner only. */
+    @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ListingResponse addImage(@PathVariable Long id, @RequestPart("image") MultipartFile image) {
+        return imageService.add(id, image);
+    }
+
+    @DeleteMapping("/{id}/images/{imageId}")
+    public ListingResponse removeImage(@PathVariable Long id, @PathVariable Long imageId) {
+        return imageService.remove(id, imageId);
+    }
+
+    /** The first photo in the list becomes the cover. */
+    @PutMapping("/{id}/images/order")
+    public ListingResponse reorderImages(@PathVariable Long id, @Valid @RequestBody ReorderImagesRequest request) {
+        return imageService.reorder(id, request);
+    }
+
     /** Seller cancels a reservation; the buyer's deposit is refunded in full. */
     @PostMapping("/{id}/reservation/cancel")
     public ListingResponse cancelReservation(@PathVariable Long id) {
@@ -150,8 +170,16 @@ public class ListingController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ListingResponse> createWithImage(
             @Valid @ModelAttribute ListingRequest request,
-            @RequestPart(name = "image", required = false) MultipartFile image) {
-        return created(listingService.create(request, image));
+            @RequestPart(name = "image", required = false) MultipartFile image,
+            @RequestPart(name = "images", required = false) List<MultipartFile> images) {
+        List<MultipartFile> files = new java.util.ArrayList<>();
+        if (image != null) {
+            files.add(image);
+        }
+        if (images != null) {
+            files.addAll(images);
+        }
+        return created(listingService.create(request, files));
     }
 
     private static ResponseEntity<ListingResponse> created(ListingResponse listing) {

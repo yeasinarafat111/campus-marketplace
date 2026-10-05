@@ -9,6 +9,7 @@ import com.campus.marketplace.entity.User;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * A listing as the API returns it. Everything up to {@code reserved} is public. The fields after it depend on
@@ -23,6 +24,7 @@ public record ListingResponse(
         BigDecimal price,
         Category category,
         String imageUrl,
+        List<Image> images,
         MeetupSpot meetupSpot,
         ItemCondition itemCondition,
         ListingStatus status,
@@ -39,8 +41,12 @@ public record ListingResponse(
 ) {
     /** The price minus the deposit, in minor units: what the reserver still owes (online or in cash). */
     public ListingResponse withBalanceDue(Long cents) {
-        return new ListingResponse(id, title, description, price, category, imageUrl, meetupSpot, itemCondition, status, createdAt, owner,
+        return new ListingResponse(id, title, description, price, category, imageUrl, images, meetupSpot, itemCondition, status, createdAt, owner,
                 featured, featuredUntil, reserved, reservedByMe, reservationExpiresAt, cashChosen, cents, counterparty);
+    }
+
+    /** A photo, in display order. The first is the cover (the same URL as {@code imageUrl}). */
+    public record Image(Long id, String url, int position) {
     }
 
     /** Public seller info. The email and phone are deliberately not exposed. */
@@ -100,6 +106,7 @@ public record ListingResponse(
                 listing.getPrice(),
                 listing.getCategory(),
                 listing.getImageUrl(),
+                listing.getImages().stream().map(i -> new Image(i.getId(), i.getUrl(), i.getPosition())).toList(),
                 listing.getMeetupSpot(),
                 listing.getItemCondition(),
                 listing.getStatus(),

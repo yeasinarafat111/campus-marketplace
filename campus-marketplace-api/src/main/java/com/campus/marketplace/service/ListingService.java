@@ -33,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +59,7 @@ public class ListingService {
     private final PaymentService paymentService;
     private final PublicListingReader publicReader;
     private final PostingFeePolicy postingFeePolicy;
+    private final ListingImageService imageService;
 
     /**
      * Public browse: ACTIVE listings whose owner hasn't been deactivated. Without an explicit {@code sort},
@@ -153,7 +155,7 @@ public class ListingService {
             @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.CATEGORY_COUNTS, allEntries = true)})
     public ListingResponse create(ListingRequest request) {
-        return create(request, null);
+        return create(request, List.of());
     }
 
     /**
@@ -164,11 +166,17 @@ public class ListingService {
     @Caching(evict = {
             @CacheEvict(cacheNames = CacheNames.FEATURED_LISTINGS, allEntries = true),
             @CacheEvict(cacheNames = CacheNames.CATEGORY_COUNTS, allEntries = true)})
-    public ListingResponse create(ListingRequest request, MultipartFile image) {
+    public ListingResponse create(ListingRequest request, List<MultipartFile> images) {
         Long ownerId = currentUser.requireId();
-        ImageStorageService.UploadedImage uploaded =
-                image != null && !image.isEmpty() ? imageStorage.upload(image) : null;
+        List<MultipartFile> files = images == null ? List.of() : images.stream().filter(f -> f != null && !f.isEmpty()).toList();
+        if (files.size() > ListingImageService.MAX_IMAGES) {
+            throw new BadRequestException("A listing can have at most " + ListingImageService.MAX_IMAGES + " photos");
+        }
+        List<ImageStorageService.UploadedImage> uploaded = new java.util.ArrayList<>();
         try {
+            for (MultipartFile file : files) {
+                uploaded.add(imageStorage.upload(file));
+            }
             return transactionTemplate.execute(tx -> {
                 User owner = userRepository.findById(ownerId)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -180,15 +188,18 @@ public class ListingService {
                         .postingFeeBasisCents(needsFee ? null : postingFeePolicy.coveredCentsWithoutFee())
                         .build();
                 apply(request, listing);
-                if (uploaded != null) {
-                    listing.setImageUrl(uploaded.secureUrl());
+                // Uploaded photos win over a plain URL; a URL alone becomes the single photo.
+                for (ImageStorageService.UploadedImage u : uploaded) {
+                    listing.addImage(u.secureUrl(), u.publicId());
                 }
+                if (uploaded.isEmpty() && request.imageUrl() != null) {
+                    listing.addImage(request.imageUrl(), null);
+                }
+                listing.syncCover();
                 return ListingResponse.from(listingRepository.save(listing));
             });
         } catch (RuntimeException e) {
-            if (uploaded != null) {
-                deleteImageQuietly(uploaded.publicId());
-            }
+            uploaded.forEach(u -> deleteImageQuietly(u.publicId()));
             throw e;
         }
     }
@@ -282,6 +293,8 @@ public class ListingService {
                 refunded.setListing(null); // the payment outlives the listing; the database nulls the link too
             }
         }
+        imageService.deleteFilesAfterCommit(listing.getImages().stream().map(i -> i.getPublicId())
+                .filter(java.util.Objects::nonNull).toList());
         listingRepository.delete(listing);
     }
 
@@ -313,7 +326,10 @@ public class ListingService {
         listing.setDescription(request.description());
         listing.setPrice(request.price());
         listing.setCategory(request.category());
-        listing.setImageUrl(request.imageUrl());
+        // A listing with photos keeps their cover; the URL field only matters for one that has none.
+        if (listing.getImages().isEmpty()) {
+            listing.setImageUrl(request.imageUrl());
+        }
         listing.setMeetupSpot(request.meetupSpot());
         listing.setItemCondition(request.itemCondition());
     }

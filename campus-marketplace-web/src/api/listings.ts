@@ -18,6 +18,14 @@ export const MEETUP_LABELS: Record<MeetupSpot, string> = {
   OTHER: 'Other (agree in chat)',
 }
 
+export interface ListingPhoto {
+  id: number
+  url: string
+  position: number
+}
+
+export const MAX_PHOTOS = 5
+
 export interface Listing {
   id: number
   title: string
@@ -25,6 +33,8 @@ export interface Listing {
   price: number
   category: Category
   imageUrl: string | null
+  /** In display order; the first is the cover. */
+  images: ListingPhoto[]
   meetupSpot: MeetupSpot | null
   itemCondition: ItemCondition | null
   status: ListingStatus
@@ -117,7 +127,7 @@ export const myListings = (params: { status?: ListingStatus; reserved?: boolean;
   client.get<Page<Listing>>('/api/listings/mine', { params }).then((r) => r.data)
 
 /** Multipart so an optional image file can be uploaded (the backend sends it to Cloudinary). */
-export function createListing(input: ListingInput, image: File | null) {
+export function createListing(input: ListingInput, images: File[]) {
   const form = new FormData()
   form.append('title', input.title)
   if (input.description) form.append('description', input.description)
@@ -125,14 +135,29 @@ export function createListing(input: ListingInput, image: File | null) {
   form.append('category', input.category)
   if (input.meetupSpot) form.append('meetupSpot', input.meetupSpot)
   if (input.itemCondition) form.append('itemCondition', input.itemCondition)
-  if (image) form.append('image', image)
+  images.forEach((f) => form.append('images', f))
   // Overrides the client's JSON default; the browser then adds the multipart boundary.
   return client
     .post<Listing>('/api/listings', form, { headers: { 'Content-Type': 'multipart/form-data' } })
     .then((r) => r.data)
 }
 
-// PUT is a full replacement and JSON-only on the backend, so the image can only be changed via imageUrl.
+export const addListingPhoto = (id: number, file: File) => {
+  const form = new FormData()
+  form.append('image', file)
+  return client
+    .post<Listing>(`/api/listings/${id}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((r) => r.data)
+}
+
+export const removeListingPhoto = (id: number, imageId: number) =>
+  client.delete<Listing>(`/api/listings/${id}/images/${imageId}`).then((r) => r.data)
+
+/** The first id becomes the cover. Must list every photo. */
+export const reorderListingPhotos = (id: number, imageIds: number[]) =>
+  client.put<Listing>(`/api/listings/${id}/images/order`, { imageIds }).then((r) => r.data)
+
+// PUT is a full replacement and JSON-only on the backend; photos are changed through the /images endpoints.
 export const updateListing = (id: number, input: ListingInput) =>
   client
     .put<Listing>(`/api/listings/${id}`, { ...input, price: Number(input.price), meetupSpot: input.meetupSpot || null, itemCondition: input.itemCondition || null })
