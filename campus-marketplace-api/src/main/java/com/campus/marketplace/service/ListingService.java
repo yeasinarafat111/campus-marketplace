@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -49,18 +50,39 @@ public class ListingService {
     private final ImageStorageService imageStorage;
     private final TransactionTemplate transactionTemplate;
 
-    /** Public browse: ACTIVE listings whose owner hasn't been deactivated. */
+    /**
+     * Public browse: ACTIVE listings whose owner hasn't been deactivated. Without an explicit {@code sort},
+     * currently featured listings come first, then newest. An explicit sort is honoured exactly.
+     *
+     * @param ownerId  only this seller's listings, or null
+     * @param featured true to return only currently featured listings, or null
+     */
     @Transactional(readOnly = true)
     public PageResponse<ListingResponse> search(String keyword, Category category, BigDecimal minPrice,
-                                                BigDecimal maxPrice, int page, int size, String sort,
-                                                String direction) {
+                                                BigDecimal maxPrice, Long ownerId, Boolean featured, int page,
+                                                int size, String sort, String direction) {
         if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
             throw new BadRequestException("minPrice must not be greater than maxPrice");
         }
+        Instant now = Instant.now();
         var criteria = new ListingSearchCriteria(keyword, category, minPrice, maxPrice, ListingStatus.ACTIVE);
         var spec = ListingSpecifications.matching(criteria).and(ListingSpecifications.ownerActive());
-        var result = listingRepository.findAll(spec, pageable(page, size, sort, direction));
-        return PageResponse.of(result, ListingResponse::from);
+        if (ownerId != null) {
+            spec = spec.and(ListingSpecifications.ownedBy(ownerId));
+        }
+        if (Boolean.TRUE.equals(featured)) {
+            spec = spec.and(ListingSpecifications.featuredAt(now));
+        }
+        Pageable pageable;
+        if (sort == null) {
+            validatePaging(page, size);
+            parseDirection(direction); // not used for the default order, but still rejected if malformed
+            spec = spec.and(ListingSpecifications.featuredFirstThenNewest(now));
+            pageable = PageRequest.of(page, size);
+        } else {
+            pageable = pageable(page, size, sort, direction);
+        }
+        return PageResponse.of(listingRepository.findAll(spec, pageable), ListingResponse::from);
     }
 
     /**
@@ -78,10 +100,14 @@ public class ListingService {
 
     /** The current user's listings, including sold ones unless a status is given. */
     @Transactional(readOnly = true)
-    public PageResponse<ListingResponse> mine(ListingStatus status, int page, int size, String sort, String direction) {
+    public PageResponse<ListingResponse> mine(ListingStatus status, Boolean reserved, int page, int size, String sort,
+                                              String direction) {
         var criteria = new ListingSearchCriteria(null, null, null, null, status);
         var spec = ListingSpecifications.matching(criteria)
                 .and(ListingSpecifications.ownedBy(currentUser.requireId()));
+        if (reserved != null) {
+            spec = spec.and(ListingSpecifications.reserved(reserved));
+        }
         return PageResponse.of(listingRepository.findAll(spec, pageable(page, size, sort, direction)),
                 ListingResponse::from);
     }
@@ -181,22 +207,30 @@ public class ListingService {
         listing.setImageUrl(request.imageUrl());
     }
 
-    private static Pageable pageable(int page, int size, String sort, String direction) {
+    private static void validatePaging(int page, int size) {
         if (page < 0) {
             throw new BadRequestException("page must be 0 or greater");
         }
         if (size < 1 || size > MAX_PAGE_SIZE) {
             throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
         }
-        String property = SORT_FIELDS.get(sort);
-        if (property == null) {
-            throw new BadRequestException("sort must be one of: " + String.join(", ", SORT_FIELDS.keySet().stream().sorted().toList()));
-        }
-        Sort.Direction dir = switch (direction.toLowerCase(Locale.ROOT)) {
+    }
+
+    private static Sort.Direction parseDirection(String direction) {
+        return switch (direction.toLowerCase(Locale.ROOT)) {
             case "asc" -> Sort.Direction.ASC;
             case "desc" -> Sort.Direction.DESC;
             default -> throw new BadRequestException("direction must be asc or desc");
         };
+    }
+
+    private static Pageable pageable(int page, int size, String sort, String direction) {
+        validatePaging(page, size);
+        String property = SORT_FIELDS.get(sort);
+        if (property == null) {
+            throw new BadRequestException("sort must be one of: " + String.join(", ", SORT_FIELDS.keySet().stream().sorted().toList()));
+        }
+        Sort.Direction dir = parseDirection(direction);
         // Tie-break on id so pages are stable when many rows share the same price/date.
         return PageRequest.of(page, size, Sort.by(dir, property).and(Sort.by(dir, "id")));
     }

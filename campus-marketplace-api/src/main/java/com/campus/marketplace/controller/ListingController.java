@@ -45,22 +45,27 @@ public class ListingController {
             @RequestParam(required = false) Category category,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Long ownerId,
+            @RequestParam(required = false) Boolean featured,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "createdAt") String sort,
+            // Omit to get featured listings first, then newest.
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "desc") String direction) {
-        return listingService.search(keyword, category, minPrice, maxPrice, page, size, sort, direction);
+        return listingService.search(keyword, category, minPrice, maxPrice, ownerId, featured, page, size, sort,
+                direction);
     }
 
     // Declared before /{id} for readability; Spring prefers the literal path either way.
     @GetMapping("/mine")
     public PageResponse<ListingResponse> mine(
             @RequestParam(required = false) ListingStatus status,
+            @RequestParam(required = false) Boolean reserved,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String direction) {
-        return listingService.mine(status, page, size, sort, direction);
+        return listingService.mine(status, reserved, page, size, sort, direction);
     }
 
     @GetMapping("/{id}")

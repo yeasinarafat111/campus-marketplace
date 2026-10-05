@@ -25,6 +25,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -114,6 +116,109 @@ class ListingControllerTest {
                 .andExpect(jsonPath("$.last").value(false))
                 .andExpect(jsonPath("$.content[0].title").value("Physics Textbook"))
                 .andExpect(jsonPath("$.content[1].title").value("Calculus Textbook"));
+    }
+
+    @Test
+    void search_withoutSort_putsCurrentlyFeaturedListingsFirst_thenNewest() throws Exception {
+        saveListing("Old plain", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        Listing expired = saveListing("Expired feature", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        feature(expired, Instant.now().minus(Duration.ofDays(1)));
+        Listing featured = saveListing("Featured but older", Category.BOOKS, "10", ListingStatus.ACTIVE, bob);
+        feature(featured, Instant.now().plus(Duration.ofDays(3)));
+        saveListing("New plain", Category.BOOKS, "10", ListingStatus.ACTIVE, bob);
+
+        mockMvc.perform(get("/api/listings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(4))
+                .andExpect(jsonPath("$.content[0].title").value("Featured but older"))
+                .andExpect(jsonPath("$.content[0].featured").value(true))
+                // An expired feature no longer pins the listing: the rest is newest first.
+                .andExpect(jsonPath("$.content[1].title").value("New plain"))
+                .andExpect(jsonPath("$.content[2].title").value("Expired feature"))
+                .andExpect(jsonPath("$.content[3].title").value("Old plain"));
+    }
+
+    @Test
+    void search_featuredFirstOrderSurvivesPaging() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            saveListing("Plain " + i, Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        }
+        Listing featured = saveListing("The featured one", Category.BOOKS, "10", ListingStatus.ACTIVE, bob);
+        feature(featured, Instant.now().plus(Duration.ofDays(1)));
+
+        mockMvc.perform(get("/api/listings").param("size", "2"))
+                .andExpect(jsonPath("$.totalElements").value(4))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content[0].title").value("The featured one"))
+                .andExpect(jsonPath("$.content[1].title").value("Plain 3"));
+        mockMvc.perform(get("/api/listings").param("size", "2").param("page", "1"))
+                .andExpect(jsonPath("$.content[0].title").value("Plain 2"))
+                .andExpect(jsonPath("$.content[1].title").value("Plain 1"));
+    }
+
+    @Test
+    void search_withExplicitSort_isNotPinnedToFeatured() throws Exception {
+        Listing pricey = saveListing("Pricey featured", Category.BOOKS, "900", ListingStatus.ACTIVE, alice);
+        feature(pricey, Instant.now().plus(Duration.ofDays(1)));
+        saveListing("Cheap", Category.BOOKS, "5", ListingStatus.ACTIVE, bob);
+
+        mockMvc.perform(get("/api/listings").param("sort", "price").param("direction", "asc"))
+                .andExpect(jsonPath("$.content[0].title").value("Cheap"))
+                .andExpect(jsonPath("$.content[1].title").value("Pricey featured"));
+    }
+
+    @Test
+    void search_featuredFilter_returnsOnlyCurrentlyFeatured() throws Exception {
+        saveListing("Plain", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        feature(saveListing("Expired", Category.BOOKS, "10", ListingStatus.ACTIVE, alice), Instant.now().minusSeconds(60));
+        feature(saveListing("Live", Category.BOOKS, "10", ListingStatus.ACTIVE, bob), Instant.now().plusSeconds(3600));
+
+        mockMvc.perform(get("/api/listings").param("featured", "true"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Live"));
+        // featured=false (or absent) doesn't filter.
+        mockMvc.perform(get("/api/listings").param("featured", "false"))
+                .andExpect(jsonPath("$.totalElements").value(3));
+    }
+
+    @Test
+    void search_ownerFilter_returnsOnlyThatSellersActiveListings() throws Exception {
+        saveListing("Alice 1", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        saveListing("Alice sold", Category.BOOKS, "10", ListingStatus.SOLD, alice);
+        saveListing("Bob 1", Category.BOOKS, "10", ListingStatus.ACTIVE, bob);
+
+        mockMvc.perform(get("/api/listings").param("ownerId", String.valueOf(alice.getId())))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Alice 1"));
+    }
+
+    @Test
+    void listingResponse_exposesSellerMemberSince_butNoContactDetails() throws Exception {
+        Listing listing = saveListing("Lamp", Category.FURNITURE, "300", ListingStatus.ACTIVE, bob);
+
+        mockMvc.perform(get("/api/listings/" + listing.getId()))
+                .andExpect(jsonPath("$.owner.fullName").value("Bob"))
+                .andExpect(jsonPath("$.owner.memberSince").isNotEmpty())
+                .andExpect(jsonPath("$.owner.email").doesNotExist())
+                .andExpect(jsonPath("$.owner.phone").doesNotExist());
+    }
+
+    @Test
+    void mine_reservedFilter_splitsReservedFromUnreserved() throws Exception {
+        saveListing("Free to buy", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        Listing held = saveListing("Held", Category.BOOKS, "10", ListingStatus.ACTIVE, alice);
+        held.setReservedBy(bob);
+        held.setReservedAt(Instant.now());
+        listingRepository.save(held);
+
+        mockMvc.perform(auth(get("/api/listings/mine").param("status", "ACTIVE").param("reserved", "true"), aliceToken))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Held"));
+        mockMvc.perform(auth(get("/api/listings/mine").param("status", "ACTIVE").param("reserved", "false"), aliceToken))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Free to buy"));
+        mockMvc.perform(auth(get("/api/listings/mine").param("status", "ACTIVE"), aliceToken))
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @Test
@@ -433,6 +538,11 @@ class ListingControllerTest {
     private Listing saveListing(String title, Category category, String price, ListingStatus status, User owner) {
         return listingRepository.save(Listing.builder()
                 .title(title).price(new BigDecimal(price)).category(category).status(status).owner(owner).build());
+    }
+
+    private void feature(Listing listing, Instant until) {
+        listing.setFeaturedUntil(until);
+        listingRepository.save(listing);
     }
 
     private Listing onlyListing() {

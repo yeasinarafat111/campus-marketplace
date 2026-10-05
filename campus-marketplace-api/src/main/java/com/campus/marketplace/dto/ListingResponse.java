@@ -21,8 +21,8 @@ public record ListingResponse(
         Instant featuredUntil,
         boolean reserved
 ) {
-    /** Public seller info. The email is deliberately not exposed. */
-    public record Owner(Long id, String fullName) {
+    /** Public seller info. The email and phone are deliberately not exposed. */
+    public record Owner(Long id, String fullName, Instant memberSince) {
     }
 
     /** Call inside a transaction: reads the (lazy) owner. */
@@ -36,7 +36,8 @@ public record ListingResponse(
                 listing.getImageUrl(),
                 listing.getStatus(),
                 listing.getCreatedAt(),
-                new Owner(listing.getOwner().getId(), listing.getOwner().getFullName()),
+                new Owner(listing.getOwner().getId(), listing.getOwner().getFullName(),
+                        listing.getOwner().getCreatedAt()),
                 listing.isFeatured(Instant.now()),
                 listing.getFeaturedUntil(),
                 listing.isReserved());
