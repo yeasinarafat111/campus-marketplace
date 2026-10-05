@@ -11,19 +11,18 @@ public final class ClientIp {
     /**
      * {@code X-Forwarded-For} is a list; every proxy appends the address it saw. A client can prepend entries of its
      * own, so only the right-hand end is trustworthy: with {@code trustedProxies} proxies in front of the app, the
-     * client is that many entries from the right. Without the header (or with fewer entries) the connection's own
-     * address is used.
+     * client is that many entries from the right. With fewer entries than that, the leftmost one is used: the
+     * connection's own address behind a proxy is the proxy's, shared by every user, and keying a limit on it would
+     * lock everyone out together. Without the header the connection's own address is used.
      */
     public static String of(HttpServletRequest request, int trustedProxies) {
         String header = request.getHeader("X-Forwarded-For");
         if (header != null && !header.isBlank() && trustedProxies > 0) {
             String[] parts = header.split(",");
-            int index = parts.length - trustedProxies;
-            if (index >= 0) {
-                String candidate = parts[index].trim();
-                if (!candidate.isEmpty()) {
-                    return candidate;
-                }
+            int index = Math.max(0, parts.length - trustedProxies);
+            String candidate = parts[index].trim();
+            if (!candidate.isEmpty()) {
+                return candidate;
             }
         }
         return request.getRemoteAddr();
