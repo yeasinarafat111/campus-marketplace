@@ -17,6 +17,7 @@ export default function ListingBadges({ listing, showAvailable = false }: { list
         </Badge>
       )}
       {listing.status === 'SOLD' && <Badge tone="muted">Sold</Badge>}
+      {listing.status === 'PENDING_PAYMENT' && <Badge tone="warning">Not published</Badge>}
       {listing.status === 'ACTIVE' && listing.reserved && <Badge tone="warning">Reserved</Badge>}
       {showAvailable && available && <Badge tone="success">Available</Badge>}
     </>

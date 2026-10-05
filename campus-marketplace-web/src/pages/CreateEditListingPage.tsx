@@ -3,8 +3,9 @@ import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CATEGORIES, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
+import { CATEGORIES, MEETUP_LABELS, MEETUP_SPOTS, createListing, getListing, getPostingFee, updateListing, type Category, type Listing, type ListingInput } from '../api/listings'
 import { parseApiError } from '../api/errors'
+import { createCheckoutSession } from '../api/payments'
 import Alert from '../components/Alert'
 import FormField from '../components/FormField'
 import Button from '../components/ui/Button'
@@ -12,7 +13,7 @@ import Field from '../components/ui/Field'
 import { Input, Select, Textarea } from '../components/ui/Input'
 import Skeleton from '../components/ui/Skeleton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { cx, formatCategory, formatPrice } from '../lib'
+import { cx, formatCategory, formatCents, formatPrice, rememberCheckout } from '../lib'
 import NotFoundPage from './NotFoundPage'
 import { isAxiosError } from 'axios'
 
@@ -56,11 +57,25 @@ function ListingForm({ existing }: { existing?: Listing }) {
 
   const save = useMutation({
     mutationFn: () => (existing ? updateListing(existing.id, form) : createListing(form, image)),
-    onSuccess: (saved) => {
-      toast.success(isEdit ? 'Listing updated' : 'Listing created')
+    onSuccess: async (saved) => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       queryClient.invalidateQueries({ queryKey: ['my-listings'] })
       queryClient.invalidateQueries({ queryKey: ['listing', String(saved.id)] })
+      if (!isEdit && saved.status === 'PENDING_PAYMENT') {
+        // Priced above the free tier: it isn't public until the posting fee is paid, so go straight to Stripe.
+        try {
+          const session = await createCheckoutSession({ listingId: saved.id, purpose: 'POSTING_FEE' })
+          if (!session.url.startsWith('https://')) throw new Error('Unexpected checkout URL')
+          rememberCheckout(saved.id, 'POSTING_FEE')
+          window.location.href = session.url
+          return
+        } catch (e) {
+          toast.error(parseApiError(e).message, { description: 'Your listing is saved but not published. Pay from My listings.' })
+          navigate('/my-listings?tab=pending')
+          return
+        }
+      }
+      toast.success(isEdit ? 'Listing updated' : 'Listing created')
       navigate(`/listings/${saved.id}`)
     },
     onError: (err) => {
@@ -87,6 +102,13 @@ function ListingForm({ existing }: { existing?: Listing }) {
 
   const price = Number(form.price)
   const priceValid = form.price.trim() !== '' && Number.isFinite(price) && price >= 0
+  // The fee comes from the server, so the page never works out an amount itself.
+  const postingFee = useQuery({
+    queryKey: ['posting-fee', price],
+    queryFn: () => getPostingFee(price),
+    enabled: !isEdit && priceValid,
+    staleTime: 60_000,
+  })
 
   return (
     <div className="mx-auto max-w-xl">
@@ -126,6 +148,14 @@ function ListingForm({ existing }: { existing?: Listing }) {
           </Field>
         </div>
 
+        {!isEdit && postingFee.data && (
+          <p role="status" className={cx('rounded-lg px-3 py-2 text-sm', postingFee.data.applies ? 'bg-navy-soft text-navy' : 'bg-success-soft text-success')}>
+            {postingFee.data.applies
+              ? <>Posting fee: <strong className="tabular-nums">{formatCents(postingFee.data.feeCents)}</strong> ({Number((postingFee.data.rate * 100).toFixed(2))}%), paid after you submit. Your listing goes live once it's paid.</>
+              : <>Free to post (up to {formatCents(postingFee.data.thresholdCents)}).</>}
+          </p>
+        )}
+
         <Field label="Meetup spot (optional)" hint="Where on campus you prefer to hand the item over." error={fieldErrors.meetupSpot}>
           <Select value={form.meetupSpot} onChange={set('meetupSpot')}>
             <option value="">No preference</option>
@@ -136,7 +166,7 @@ function ListingForm({ existing }: { existing?: Listing }) {
         </Field>
 
         <Button type="submit" size="lg" loading={save.isPending} className="w-full">
-          {isEdit ? 'Save changes' : 'Post listing'}
+          {isEdit ? 'Save changes' : postingFee.data?.applies ? 'Continue to payment' : 'Post listing'}
         </Button>
       </form>
     </div>

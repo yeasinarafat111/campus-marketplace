@@ -15,12 +15,13 @@ const TIMEOUT_MS = 15_000
 
 /** Stripe confirms to us in the background, so ask the listing until it shows the effect of the payment. */
 const applied = (purpose: CheckoutPurpose, l: Listing) =>
-  purpose === 'FEATURE_LISTING' ? l.featured : purpose === 'RESERVE_ITEM' ? l.reservedByMe : l.status === 'SOLD'
+  purpose === 'FEATURE_LISTING' ? l.featured : purpose === 'RESERVE_ITEM' ? l.reservedByMe : purpose === 'POSTING_FEE' ? l.status === 'ACTIVE' : l.status === 'SOLD'
 
 function message(purpose: CheckoutPurpose, l: Listing): string {
   if (purpose === 'FEATURE_LISTING') {
     return l.featuredUntil ? `Featured until ${formatDateTime(l.featuredUntil)}.` : 'Your listing is now featured.'
   }
+  if (purpose === 'POSTING_FEE') return 'Your listing is live. Students can find it now.'
   if (purpose === 'RESERVE_ITEM') {
     return l.reservationExpiresAt ? `Reserved for you until ${formatDateTime(l.reservationExpiresAt)}.` : 'The item is reserved for you.'
   }

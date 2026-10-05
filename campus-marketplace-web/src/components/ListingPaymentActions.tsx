@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useNow } from '../hooks/useNow'
 import { formatCents, formatRemaining } from '../lib'
 import CheckoutButton from './CheckoutButton'
+import PayToPublishButton from './PayToPublishButton'
 import ReserveDialog from './ReserveDialog'
 import Button from './ui/Button'
 import { buttonClasses } from './ui/buttonClasses'
@@ -39,6 +40,16 @@ export default function ListingPaymentActions({ listing, size = 'lg', block = fa
     queryFn: () => getFeeQuote(listing.id),
     enabled: wantsQuote,
   })
+  if (listing.status === 'PENDING_PAYMENT') {
+    return isOwner ? (
+      <div className={`space-y-2 ${width}`}>
+        <p className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
+          This listing isn't published yet. Pay the posting fee to put it on the board. It is deleted 24 hours after you created it if it is still unpaid.
+        </p>
+        <PayToPublishButton listing={listing} size={size} className={width} />
+      </div>
+    ) : null
+  }
   if (listing.status !== 'ACTIVE') return null
 
   if (listing.reservedByMe) return <ReserverActions listing={listing} quote={quote.data} size={size} width={width} compact={compact} />

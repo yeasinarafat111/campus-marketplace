@@ -663,7 +663,7 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P3** FeeCalculator + tests · fee quote endpoint · price lock · UI quotes + reserve terms dialog
 - [x] **P4** Order entity · PURCHASE flow · cancel/release/expiry · race refund · purchases/sales pages · success-page polling
 - [x] **P4a** Phase 4 finished: purchase/cancel/release/expiry UI · real-Stripe verification · deploy checkpoint
-- [ ] **P3b** Posting fee: PENDING_PAYMENT · POSTING_FEE · hidden until paid · stale cleanup · price-raise block · live quote
+- [x] **P3b** Posting fee: PENDING_PAYMENT · POSTING_FEE · hidden until paid · stale cleanup · price-raise block · live quote
 - [ ] **P4b** Revenue ledger · /api/admin/revenue · admin revenue page (chart, CSV)
 - [x] **P4d** meetupSpot on listings · buyer confirms receipt / reports a problem · 72h auto-complete · admin problem queue · payout only when COMPLETED
 - [x] **P4c** Cash at meetup · paymentMethod · seller confirms handover · owed-to-seller for cash

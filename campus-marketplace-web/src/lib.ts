@@ -22,7 +22,7 @@ export function timeAgo(iso: string, now = Date.now()): string {
 // leaving for Stripe and read back on the /payments/* pages.
 const CHECKOUT_KEY = 'campus.checkout'
 
-export type CheckoutPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE'
+export type CheckoutPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE' | 'POSTING_FEE'
 
 export const rememberCheckout = (listingId: number, purpose: CheckoutPurpose) => {
   try {

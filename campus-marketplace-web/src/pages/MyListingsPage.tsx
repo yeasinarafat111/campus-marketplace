@@ -8,6 +8,7 @@ import { parseApiError } from '../api/errors'
 import Alert from '../components/Alert'
 import CheckoutButton from '../components/CheckoutButton'
 import ListingBadges from '../components/ListingBadges'
+import PayToPublishButton from '../components/PayToPublishButton'
 import Pagination from '../components/Pagination'
 import Button from '../components/ui/Button'
 import { buttonClasses } from '../components/ui/buttonClasses'
@@ -21,6 +22,7 @@ import { cx, formatCategory, formatDate } from '../lib'
 
 const TABS = {
   active: { label: 'Active', query: { status: 'ACTIVE', reserved: false } },
+  pending: { label: 'Awaiting payment', query: { status: 'PENDING_PAYMENT' } },
   reserved: { label: 'Reserved', query: { status: 'ACTIVE', reserved: true } },
   sold: { label: 'Sold', query: { status: 'SOLD' } },
 } as const
@@ -94,6 +96,7 @@ export default function MyListingsPage() {
       </div>
 
       <div id="my-listings-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+        {tab === 'pending' && <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">These aren't public yet. Each is deleted 24 hours after you created it if its posting fee is still unpaid.</p>}
         {error && <Alert kind="error">{parseApiError(error).message}</Alert>}
         {isPending && (
           <ul className="divide-y divide-line">
@@ -112,10 +115,10 @@ export default function MyListingsPage() {
           <div className="mt-6">
             <EmptyState
               icon={Package}
-              title={tab === 'active' ? "You don't have any active listings" : tab === 'reserved' ? 'Nothing is reserved right now' : 'Nothing sold yet'}
+              title={tab === 'active' ? "You don't have any active listings" : tab === 'pending' ? 'Nothing is waiting for payment' : tab === 'reserved' ? 'Nothing is reserved right now' : 'Nothing sold yet'}
               action={tab === 'active' ? <Link to="/listings/new" className={buttonClasses()}>Sell something</Link> : undefined}
             >
-              {tab === 'active' ? 'Post an item and it shows up on the board straight away.' : tab === 'reserved' ? 'When a buyer pays a deposit, the item shows up here.' : 'Items you mark as sold show up here.'}
+              {tab === 'active' ? 'Post an item and it shows up on the board straight away.' : tab === 'pending' ? 'Listings priced above $5.00 wait here until their posting fee is paid.' : tab === 'reserved' ? 'When a buyer pays a deposit, the item shows up here.' : 'Items you mark as sold show up here.'}
             </EmptyState>
           </div>
         )}
@@ -153,6 +156,19 @@ export default function MyListingsPage() {
                   <Button variant="secondary" size="sm" onClick={() => setPending({ kind: 'sold', listing: l })}>
                     Mark sold
                   </Button>
+                  <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
+                    <Trash2 className="size-4" aria-hidden />
+                    Delete
+                  </Button>
+                </div>
+              )}
+              {l.status === 'PENDING_PAYMENT' && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <PayToPublishButton listing={l} size="sm" />
+                  <Link to={`/listings/${l.id}/edit`} className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
+                    <Pencil className="size-4" aria-hidden />
+                    Edit
+                  </Link>
                   <Button variant="ghost" size="sm" aria-label={`Delete ${l.title}`} className="text-danger! hover:bg-danger-soft" onClick={() => setPending({ kind: 'delete', listing: l })}>
                     <Trash2 className="size-4" aria-hidden />
                     Delete

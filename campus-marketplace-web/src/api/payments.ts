@@ -1,6 +1,6 @@
 import client from './client'
 
-export type PaymentPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE'
+export type PaymentPurpose = 'FEATURE_LISTING' | 'RESERVE_ITEM' | 'PURCHASE' | 'POSTING_FEE'
 
 export interface CheckoutSession {
   paymentId: number

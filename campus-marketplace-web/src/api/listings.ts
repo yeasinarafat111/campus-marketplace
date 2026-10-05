@@ -2,7 +2,7 @@ import client from './client'
 
 export const CATEGORIES = ['BOOKS', 'ELECTRONICS', 'FURNITURE', 'CLOTHING', 'STATIONERY', 'SPORTS', 'OTHER'] as const
 export type Category = (typeof CATEGORIES)[number]
-export type ListingStatus = 'ACTIVE' | 'SOLD'
+export type ListingStatus = 'ACTIVE' | 'SOLD' | 'PENDING_PAYMENT'
 
 export const MEETUP_SPOTS = ['MAIN_GATE', 'LIBRARY', 'CAFETERIA', 'PERMANENT_CAMPUS', 'OTHER'] as const
 export type MeetupSpot = (typeof MEETUP_SPOTS)[number]
@@ -89,6 +89,19 @@ export const getFeatured = () => client.get<Listing[]>('/api/listings/featured')
 /** Active listings per category, for the chips (cached on the server for five minutes). */
 export const getCategoryCounts = () =>
   client.get<Record<Category, number>>('/api/listings/category-counts').then((r) => r.data)
+
+export interface PostingFeeQuote {
+  /** False for prices up to the threshold (including free): they post for nothing. */
+  applies: boolean
+  feeCents: number
+  rate: number
+  thresholdCents: number
+  currency: string
+}
+
+/** What posting a listing at this price costs, computed by the server. */
+export const getPostingFee = (price: number) =>
+  client.get<PostingFeeQuote>('/api/listings/posting-fee', { params: { price } }).then((r) => r.data)
 
 export const getListing = (id: string | number) => client.get<Listing>(`/api/listings/${id}`).then((r) => r.data)
 
