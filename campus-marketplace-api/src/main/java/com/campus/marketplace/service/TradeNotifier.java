@@ -1,6 +1,7 @@
 package com.campus.marketplace.service;
 
 import com.campus.marketplace.exception.EmailDeliveryException;
+import com.campus.marketplace.service.TradeEvents.CashSaleCompleted;
 import com.campus.marketplace.service.TradeEvents.Party;
 import com.campus.marketplace.service.TradeEvents.PurchaseCompleted;
 import com.campus.marketplace.service.TradeEvents.ReservationConfirmed;
@@ -105,6 +106,36 @@ public class TradeNotifier {
                 """.formatted(e.buyer().name(), e.title(), money(e.priceCents(), e.currency()),
                 money(e.depositCents(), e.currency()), money(e.balanceCents(), e.currency()),
                 e.seller().name(), phone(e.seller()), link));
+    }
+
+    @Async("notificationExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onCashSale(CashSaleCompleted e) {
+        String link = listingLink(e.listingId());
+        send(e.seller(), "Cash sale confirmed: \"" + e.title() + "\"", """
+                Hello %s,
+
+                You confirmed that %s paid %s in cash for "%s" (the %s deposit was paid online).
+
+                The sale is complete. Campus Marketplace holds the %s deposit for you.
+
+                %s
+
+                — Campus Marketplace
+                """.formatted(e.seller().name(), e.buyer().name(), money(e.cashCents(), e.currency()), e.title(),
+                money(e.depositCents(), e.currency()), money(e.depositCents(), e.currency()), link));
+        send(e.buyer(), "Purchase complete: \"" + e.title() + "\"", """
+                Hello %s,
+
+                %s confirmed the handover of "%s". You paid %s in cash on top of your %s deposit, %s in total.
+
+                If anything is wrong, open the order and use "Report a problem".
+
+                %s
+
+                — Campus Marketplace
+                """.formatted(e.buyer().name(), e.seller().name(), e.title(), money(e.cashCents(), e.currency()),
+                money(e.depositCents(), e.currency()), money(e.priceCents(), e.currency()), link));
     }
 
     private void send(Party to, String subject, String body) {

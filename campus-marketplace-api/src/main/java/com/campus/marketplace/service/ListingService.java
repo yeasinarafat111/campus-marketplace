@@ -108,8 +108,13 @@ public class ListingService {
         if (viewerId == null || (!publicView.reserved() && publicView.status() != ListingStatus.SOLD)) {
             return publicView;
         }
-        return transactionTemplate.execute(tx -> ListingResponse.from(
-                listingRepository.findWithPartiesById(id).orElseThrow(() -> notFound(id)), viewerId));
+        return transactionTemplate.execute(tx -> {
+            Listing listing = listingRepository.findWithPartiesById(id).orElseThrow(() -> notFound(id));
+            ListingResponse response = ListingResponse.from(listing, viewerId);
+            // The balance is only for the two sides of a live reservation.
+            boolean party = response.reservedByMe() || response.counterparty() != null && listing.isReserved();
+            return party ? response.withBalanceDue(paymentService.balanceDue(listing)) : response;
+        });
     }
 
     /** The current user's listings, including sold ones unless a status is given. */

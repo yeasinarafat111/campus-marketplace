@@ -19,6 +19,11 @@ public final class TradeEvents {
                                        String currency, Party seller, Party buyer, Instant expiresAt) {
     }
 
+    /** The seller confirmed a cash handover: the buyer paid the balance in person. */
+    public record CashSaleCompleted(Long listingId, String title, long priceCents, long depositCents,
+                                    long cashCents, String currency, Party seller, Party buyer) {
+    }
+
     public record PurchaseCompleted(Long listingId, String title, long priceCents, long depositCents,
                                     long balanceCents, String currency, Party seller, Party buyer) {
     }

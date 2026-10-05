@@ -94,6 +94,12 @@ public class Listing {
     /** When the current reservation lapses and the item becomes available again. Null if not reserved. */
     private Instant reservationExpiresAt;
 
+    /**
+     * Set when the reserver chooses to pay the balance in cash at the meetup instead of online. The listing stays
+     * reserved (and the normal expiry applies) until the seller confirms the handover. Cleared with the reservation.
+     */
+    private Instant cashChosenAt;
+
     /** Who bought it, set when the purchase payment succeeds. Null until sold (and for items sold off-platform). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "buyer_id")
@@ -106,6 +112,7 @@ public class Listing {
         this.reservedBy = null;
         this.reservedAt = null;
         this.reservationExpiresAt = null;
+        this.cashChosenAt = null;
     }
 
     public boolean isFeatured(Instant now) {

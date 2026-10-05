@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -83,6 +84,21 @@ public class Order {
     /** ISO 4217, lower-case, as on the payment. */
     @Column(nullable = false, length = 3)
     private String currency;
+
+    /**
+     * ONLINE: the buyer paid the balance through the platform. CASH: the buyer paid it to the seller in person, so
+     * the platform only ever held the deposit. Rows from before cash existed read as ONLINE.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @ColumnDefault("'ONLINE'")
+    @Builder.Default
+    private PaymentMethod paymentMethod = PaymentMethod.ONLINE;
+
+    /** What the platform owes the seller: the whole price for an online sale, only the deposit for a cash one. */
+    public long owedToSellerCents() {
+        return paymentMethod == PaymentMethod.CASH ? depositCents : itemPriceCents;
+    }
 
     /** Copied from the listing at the time of sale, so it survives edits and deletion. */
     @Enumerated(EnumType.STRING)

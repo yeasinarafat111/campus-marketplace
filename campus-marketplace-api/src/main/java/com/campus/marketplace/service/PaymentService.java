@@ -370,6 +370,22 @@ public class PaymentService {
     }
 
     /**
+     * What the reserver of this listing still owes: its price minus the deposit they paid (decision D2), in minor
+     * units. The same number for paying online and for paying cash. Null if the listing isn't reserved or no
+     * successful deposit is on record. Call inside a transaction.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Long balanceDue(Listing listing) {
+        if (!listing.isReserved()) {
+            return null;
+        }
+        return paymentRepository.findFirstByListingIdAndUserIdAndPurposeAndStatusOrderByIdDesc(
+                        listing.getId(), listing.getReservedBy().getId(), PaymentPurpose.RESERVE_ITEM, PaymentStatus.SUCCEEDED)
+                .map(deposit -> FeeCalculator.toCents(listing.getPrice()) - deposit.getAmount())
+                .orElse(null);
+    }
+
+    /**
      * Refunds the deposit that is holding this listing (the reserver's newest successful RESERVE_ITEM
      * payment) and returns it, or returns null and refunds nothing if no such payment is on record.
      */

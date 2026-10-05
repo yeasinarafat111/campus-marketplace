@@ -3,6 +3,7 @@ package com.campus.marketplace.dto;
 import com.campus.marketplace.entity.MeetupSpot;
 import com.campus.marketplace.entity.Order;
 import com.campus.marketplace.entity.OrderStatus;
+import com.campus.marketplace.entity.PaymentMethod;
 import com.campus.marketplace.entity.PayoutStatus;
 import com.campus.marketplace.entity.User;
 
@@ -28,6 +29,7 @@ public record OrderResponse(
         long balanceCents,
         String currency,
         MeetupSpot meetupSpot,
+        PaymentMethod paymentMethod,
         OrderStatus status,
         PayoutStatus payoutStatus,
         Instant createdAt,
@@ -58,6 +60,7 @@ public record OrderResponse(
                 order.getBalanceCents(),
                 order.getCurrency(),
                 order.getMeetupSpot(),
+                order.getPaymentMethod(),
                 order.getStatus(),
                 order.getPayoutStatus(),
                 order.getCreatedAt(),

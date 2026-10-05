@@ -688,6 +688,219 @@ class TradeFlowTest {
         checkout(buyer, lamp, "PURCHASE").andExpect(status().isNotFound());
     }
 
+    // ---- cash at the meetup ----
+
+    @Test
+    void theReserverCanChooseCash_seeingTheExactAmount_andOnlyTheTwoSidesSeeTheChoice() throws Exception {
+        reserve(lamp, buyer);
+
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cashChosen").value(true))
+                .andExpect(jsonPath("$.balanceDueCents").value(1150))   // price $12.00 minus the $0.50 deposit
+                .andExpect(jsonPath("$.counterparty.phone").value(SELLER_PHONE));
+        // Idempotent, and nothing was charged.
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        verify(checkoutGateway, times(1)).createCheckoutSession(any()); // only the deposit's
+
+        mockMvc.perform(as(get("/api/listings/{id}", lamp.getId()), seller))
+                .andExpect(jsonPath("$.cashChosen").value(true)).andExpect(jsonPath("$.balanceDueCents").value(1150));
+        mockMvc.perform(as(get("/api/listings/{id}", lamp.getId()), other))
+                .andExpect(jsonPath("$.cashChosen").value(false)).andExpect(jsonPath("$.balanceDueCents").doesNotExist());
+        mockMvc.perform(get("/api/listings/{id}", lamp.getId()))
+                .andExpect(jsonPath("$.cashChosen").value(false)).andExpect(jsonPath("$.balanceDueCents").doesNotExist());
+    }
+
+    @Test
+    void choosingCash_isOnlyForTheReserver_andNeedsALiveReservation() throws Exception {
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isConflict()); // not reserved
+        reserve(lamp, buyer);
+
+        for (User not : new User[] {seller, other, admin}) {
+            mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), not)).andExpect(status().isForbidden());
+        }
+        mockMvc.perform(post("/api/listings/{id}/cash", lamp.getId())).andExpect(status().isUnauthorized());
+        assertThat(reload(lamp).getCashChosenAt()).isNull();
+
+        Listing l = reload(lamp);
+        l.setReservationExpiresAt(Instant.now().minusSeconds(1));
+        listingRepository.save(l);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("This reservation has expired"));
+    }
+
+    @Test
+    void theSellerConfirmsTheHandover_andTheCashSaleIsRecordedAsACompletedCashOrder() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        org.mockito.Mockito.clearInvocations(mailService);
+
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentMethod").value("CASH"))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.completedAt").isNotEmpty())
+                .andExpect(jsonPath("$.itemPriceCents").value(1200))
+                .andExpect(jsonPath("$.depositCents").value(50))
+                .andExpect(jsonPath("$.balanceCents").value(1150))
+                .andExpect(jsonPath("$.counterparty.phone").value(BUYER_PHONE));
+
+        Listing sold = reload(lamp);
+        assertThat(sold.getStatus()).isEqualTo(ListingStatus.SOLD);
+        assertThat(sold.getBuyer().getId()).isEqualTo(buyer.getId());
+        assertThat(sold.isReserved()).isFalse();
+        assertThat(sold.getCashChosenAt()).isNull();
+        assertThat(orderRepository.findAll()).singleElement().satisfies(o -> {
+            assertThat(o.getPaymentMethod()).isEqualTo(com.campus.marketplace.entity.PaymentMethod.CASH);
+            assertThat(o.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+            assertThat(o.getPayment()).isNull(); // nothing went through Stripe
+        });
+        // No money moved through the platform for the balance: only the deposit payment exists.
+        assertThat(paymentRepository.findAll()).singleElement()
+                .satisfies(p -> assertThat(p.getPurpose()).isEqualTo(PaymentPurpose.RESERVE_ITEM));
+
+        ArgumentCaptor<String> to = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(mailService, times(2)).sendNotification(to.capture(), anyString(), body.capture());
+        assertThat(to.getAllValues()).containsExactlyInAnyOrder("seller@seu.edu.bd", "buyer@seu.edu.bd");
+        assertThat(String.join("\n", body.getAllValues())).contains("$11.50").contains("in cash");
+        // Both sides then see the order, with the other's phone.
+        mockMvc.perform(as(get("/api/orders/purchases"), buyer)).andExpect(jsonPath("$.content[0].paymentMethod").value("CASH"))
+                .andExpect(jsonPath("$.content[0].counterparty.phone").value(SELLER_PHONE));
+    }
+
+    @Test
+    void onlyTheListingsSellerCanConfirm_andOnlyAfterTheBuyerChoseCash() throws Exception {
+        reserve(lamp, buyer);
+        // Cash not chosen yet.
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("The buyer hasn't chosen to pay cash"));
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+
+        for (User not : new User[] {buyer, other, admin}) {
+            mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), not)).andExpect(status().isForbidden());
+        }
+        mockMvc.perform(post("/api/listings/{id}/cash/confirm", lamp.getId())).andExpect(status().isUnauthorized());
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", 999_999), seller)).andExpect(status().isNotFound());
+        assertThat(orderRepository.count()).isZero();
+        assertThat(reload(lamp).getStatus()).isEqualTo(ListingStatus.ACTIVE);
+    }
+
+    @Test
+    void anotherSellersListing_cantBeConfirmedByAStudentWhoOwnsADifferentOne() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        Listing othersListing = saveListing("Chair", "30.00", other);
+        reserve(othersListing, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", othersListing.getId()), buyer)).andExpect(status().isOk());
+
+        // `other` owns the chair, not the lamp.
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), other)).andExpect(status().isForbidden());
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", othersListing.getId()), seller)).andExpect(status().isForbidden());
+        assertThat(orderRepository.count()).isZero();
+    }
+
+    @Test
+    void aSecondConfirmationIsRefused_andCreatesNoSecondOrder() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isOk());
+        Instant soldAt = reload(lamp).getSoldAt();
+
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isConflict());
+
+        assertThat(orderRepository.count()).isEqualTo(1);
+        assertThat(reload(lamp).getSoldAt()).isEqualTo(soldAt);
+    }
+
+    @Test
+    void anExpiredReservationCantBeConfirmed_evenBeforeTheSweepHasFreedIt() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        Listing l = reload(lamp);
+        l.setReservationExpiresAt(Instant.now().minusSeconds(1));
+        listingRepository.save(l);
+
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("This reservation has expired"));
+
+        assertThat(orderRepository.count()).isZero();
+        assertThat(reload(lamp).getStatus()).isEqualTo(ListingStatus.ACTIVE);
+    }
+
+    @Test
+    void normalExpiryAppliesToACashChoice_andClearsIt() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        Listing l = reload(lamp);
+        l.setReservationExpiresAt(Instant.now().minusSeconds(1));
+        listingRepository.save(l);
+
+        reservationService.releaseExpired();
+
+        Listing freed = reload(lamp);
+        assertThat(freed.isReserved()).isFalse();
+        assertThat(freed.getCashChosenAt()).isNull();
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", lamp.getId()), seller)).andExpect(status().isConflict());
+    }
+
+    @Test
+    void cancellingOrReleasing_clearsTheCashChoice() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+        mockMvc.perform(as(post("/api/listings/{id}/reservation/release", lamp.getId()), buyer)).andExpect(status().isOk());
+        assertThat(reload(lamp).getCashChosenAt()).isNull();
+
+        reserve(lamp, other);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), other)).andExpect(status().isOk());
+        mockMvc.perform(as(post("/api/listings/{id}/reservation/cancel", lamp.getId()), seller)).andExpect(status().isOk());
+        assertThat(reload(lamp).getCashChosenAt()).isNull();
+    }
+
+    @Test
+    void payingOnlineInsteadAfterChoosingCash_stillWorks() throws Exception {
+        reserve(lamp, buyer);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", lamp.getId()), buyer)).andExpect(status().isOk());
+
+        buy(lamp, buyer);
+
+        assertThat(reload(lamp).getStatus()).isEqualTo(ListingStatus.SOLD);
+        assertThat(reload(lamp).getCashChosenAt()).isNull();
+        assertThat(orderRepository.findAll()).singleElement()
+                .satisfies(o -> assertThat(o.getPaymentMethod()).isEqualTo(com.campus.marketplace.entity.PaymentMethod.ONLINE));
+    }
+
+    @Test
+    void owedToSeller_isTheDepositOnlyForACashOrder_andTheWholePriceForAnOnlineOne() throws Exception {
+        // Online sale: the platform collected deposit + balance.
+        reserve(lamp, buyer);
+        buy(lamp, buyer);
+        // Cash sale: the platform only holds the deposit.
+        Listing chair = saveListing("Chair", "30.00", seller);
+        reserve(chair, other);
+        mockMvc.perform(as(post("/api/listings/{id}/cash", chair.getId()), other)).andExpect(status().isOk());
+        mockMvc.perform(as(post("/api/listings/{id}/cash/confirm", chair.getId()), seller)).andExpect(status().isOk());
+
+        String body = mockMvc.perform(as(get("/api/admin/orders"), admin)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var content = objectMapper.readTree(body).get("content");
+        for (var order : content) {
+            if ("CASH".equals(order.get("paymentMethod").asText())) {
+                assertThat(order.get("itemPriceCents").asLong()).isEqualTo(3000);
+                assertThat(order.get("depositCents").asLong()).isEqualTo(150);
+                assertThat(order.get("owedToSellerCents").asLong()).as("cash order: the deposit only").isEqualTo(150);
+            } else {
+                assertThat(order.get("owedToSellerCents").asLong()).as("online order: the whole price").isEqualTo(1200);
+            }
+        }
+        assertThat(content).hasSize(2);
+        // A cash order is COMPLETED at once, so it can be paid out (the deposit).
+        Order cash = orderRepository.findAll().stream()
+                .filter(o -> o.getPaymentMethod() == com.campus.marketplace.entity.PaymentMethod.CASH).findFirst().orElseThrow();
+        mockMvc.perform(as(patch("/api/admin/orders/{id}/payout", cash.getId()), admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.owedToSellerCents").value(150));
+    }
+
     // ---- helpers ----
 
     /** Reserves {@code listing} for {@code user}: checkout, then Stripe's webhook. Returns the session id. */

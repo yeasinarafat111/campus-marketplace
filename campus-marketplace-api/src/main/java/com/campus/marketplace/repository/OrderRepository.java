@@ -46,6 +46,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
             update Order o set o.status = com.campus.marketplace.entity.OrderStatus.COMPLETED, o.completedAt = :now
             where o.status = com.campus.marketplace.entity.OrderStatus.PAID
+              and o.paymentMethod = com.campus.marketplace.entity.PaymentMethod.ONLINE
               and o.problemReportedAt is null and o.createdAt <= :cutoff""")
     int autoCompleteDue(@Param("cutoff") Instant cutoff, @Param("now") Instant now);
 }

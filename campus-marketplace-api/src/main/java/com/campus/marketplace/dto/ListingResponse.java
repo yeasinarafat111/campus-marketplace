@@ -10,10 +10,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * A listing as the API returns it. Everything up to {@code reserved} is public. The last three fields depend
- * on who is asking and are empty (false, null, null) for everyone except the two sides of a reservation or
- * sale: {@code reservedByMe}, {@code reservationExpiresAt} and {@code counterparty}, the other side's name and
- * phone. Search results never carry them.
+ * A listing as the API returns it. Everything up to {@code reserved} is public. The fields after it depend on
+ * who is asking and are empty (false, null, false, null, null) for everyone except the two sides of a
+ * reservation or sale: {@code reservedByMe}, {@code reservationExpiresAt}, {@code cashChosen}, {@code balanceDueCents} and
+ * {@code counterparty}, the other side's name and phone. Search results never carry them.
  */
 public record ListingResponse(
         Long id,
@@ -31,8 +31,16 @@ public record ListingResponse(
         boolean reserved,
         boolean reservedByMe,
         Instant reservationExpiresAt,
+        boolean cashChosen,
+        Long balanceDueCents,
         Contact counterparty
 ) {
+    /** The price minus the deposit, in minor units: what the reserver still owes (online or in cash). */
+    public ListingResponse withBalanceDue(Long cents) {
+        return new ListingResponse(id, title, description, price, category, imageUrl, meetupSpot, status, createdAt, owner,
+                featured, featuredUntil, reserved, reservedByMe, reservationExpiresAt, cashChosen, cents, counterparty);
+    }
+
     /** Public seller info. The email and phone are deliberately not exposed. */
     public record Owner(Long id, String fullName, Instant memberSince) {
     }
@@ -57,6 +65,7 @@ public record ListingResponse(
         User owner = listing.getOwner();
         boolean reservedByMe = false;
         Instant expiresAt = null;
+        boolean cashChosen = false;
         Contact counterparty = null;
 
         if (viewerId != null) {
@@ -65,9 +74,11 @@ public record ListingResponse(
                 if (viewerId.equals(reserver.getId())) {
                     reservedByMe = true;
                     expiresAt = listing.getReservationExpiresAt();
+                    cashChosen = listing.getCashChosenAt() != null;
                     counterparty = Contact.of(owner);
                 } else if (viewerId.equals(owner.getId())) {
                     expiresAt = listing.getReservationExpiresAt();
+                    cashChosen = listing.getCashChosenAt() != null;
                     counterparty = Contact.of(reserver);
                 }
             } else if (listing.getStatus() == ListingStatus.SOLD && listing.getBuyer() != null) {
@@ -96,6 +107,8 @@ public record ListingResponse(
                 listing.isReserved(),
                 reservedByMe,
                 expiresAt,
+                cashChosen,
+                null,
                 counterparty);
     }
 }

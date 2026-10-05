@@ -3,6 +3,7 @@ package com.campus.marketplace.controller;
 import com.campus.marketplace.dto.FeeQuote;
 import com.campus.marketplace.dto.ListingRequest;
 import com.campus.marketplace.dto.ListingResponse;
+import com.campus.marketplace.dto.OrderResponse;
 import com.campus.marketplace.dto.PageResponse;
 import com.campus.marketplace.entity.Category;
 import com.campus.marketplace.entity.ListingStatus;
@@ -98,6 +99,18 @@ public class ListingController {
     @PostMapping("/{id}/reservation/cancel")
     public ListingResponse cancelReservation(@PathVariable Long id) {
         return reservationService.cancelAsSeller(id);
+    }
+
+    /** Reserver: "I'll pay cash at the meetup". Records the choice; nothing is charged. */
+    @PostMapping("/{id}/cash")
+    public ListingResponse chooseCash(@PathVariable Long id) {
+        return reservationService.chooseCash(id);
+    }
+
+    /** Seller: "Confirm handover and cash received". Sells the item and completes the cash order. */
+    @PostMapping("/{id}/cash/confirm")
+    public OrderResponse confirmCashHandover(@PathVariable Long id) {
+        return reservationService.confirmCashHandover(id);
     }
 
     /** Buyer gives the item up; the deposit is kept. */

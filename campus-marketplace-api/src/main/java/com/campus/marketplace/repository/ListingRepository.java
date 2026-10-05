@@ -60,7 +60,8 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
      */
     @Modifying
     @Query("""
-            update Listing l set l.reservedBy = null, l.reservedAt = null, l.reservationExpiresAt = null
+            update Listing l set l.reservedBy = null, l.reservedAt = null, l.reservationExpiresAt = null,
+                l.cashChosenAt = null
             where l.reservedBy is not null and l.reservationExpiresAt < :now""")
     int releaseExpiredReservations(@Param("now") Instant now);
 

@@ -201,6 +201,16 @@ class OrderLifecycleTest {
     }
 
     @Test
+    void autoComplete_neverTouchesACashOrder() {
+        Order cash = saveOrderPaidAgo(Duration.ofHours(100));
+        cash.setPaymentMethod(com.campus.marketplace.entity.PaymentMethod.CASH);
+        orderRepository.save(cash);
+
+        assertThat(orderService.autoCompleteDue(Instant.now())).isZero();
+        assertThat(statusOf(cash)).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
     void theResponseTellsTheBuyerWhenTheOrderWillAutoComplete() throws Exception {
         mockMvc.perform(as(get("/api/orders/purchases"), buyer))
                 .andExpect(jsonPath("$.content[0].status").value("PAID"))
