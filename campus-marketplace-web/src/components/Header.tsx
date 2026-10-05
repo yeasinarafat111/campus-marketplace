@@ -131,7 +131,7 @@ export default function Header() {
 
   return (
     <header className="on-navy sticky top-0 z-40 bg-navy text-white">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-1.5 px-4 sm:gap-3">
         <button
           type="button"
           onClick={() => setNavOpen(true)}
