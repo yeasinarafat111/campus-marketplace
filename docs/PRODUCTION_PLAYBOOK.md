@@ -33,6 +33,8 @@ and say which ones you used.
 | D7 | Free items (price $0) | Allowed, but they can't be reserved or bought. Users message the giver instead. Paid listings must be at least $1.00. |
 | D8 | Chat transport | Spring WebSocket + STOMP, with `@stomp/stompjs` on the client. See [why not Socket.IO](#why-stomp-and-not-socketio). |
 
+**Confirmed by the user on 2026-10-05: D1–D8 all use the defaults above.**
+
 ### Fee examples (D1). Implement these as unit tests.
 
 | Price | Rate | Raw | Charged |
