@@ -40,6 +40,7 @@ public class FakeAssistantGateway implements AssistantGateway {
     private final AtomicReference<RuntimeException> nextFailure = new AtomicReference<>();
     private final AtomicReference<Prompt> lastPrompt = new AtomicReference<>();
     private final AtomicInteger calls = new AtomicInteger();
+    private final AtomicReference<Runnable> onNextCall = new AtomicReference<>();
 
     public FakeAssistantGateway(@Value("${app.assistant.fake-delay:0ms}") Duration delay) {
         this.delay = delay;
@@ -50,6 +51,10 @@ public class FakeAssistantGateway implements AssistantGateway {
     public Reply generate(Prompt prompt) {
         lastPrompt.set(prompt);
         calls.incrementAndGet();
+        Runnable hook = onNextCall.getAndSet(null);
+        if (hook != null) {
+            hook.run();
+        }
         RuntimeException failure = nextFailure.getAndSet(null);
         if (failure != null) {
             throw failure;
@@ -83,6 +88,11 @@ public class FakeAssistantGateway implements AssistantGateway {
         nextFailure.set(failure);
     }
 
+    /** Runs inside the next call, e.g. so a test can look at the transaction or connection state at that moment. */
+    public void onNextCall(Runnable hook) {
+        onNextCall.set(hook);
+    }
+
     public Prompt lastPrompt() {
         return lastPrompt.get();
     }
@@ -95,6 +105,7 @@ public class FakeAssistantGateway implements AssistantGateway {
         nextReply.set(null);
         nextFailure.set(null);
         lastPrompt.set(null);
+        onNextCall.set(null);
         calls.set(0);
     }
 
