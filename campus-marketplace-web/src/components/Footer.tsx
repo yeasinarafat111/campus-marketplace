@@ -5,6 +5,10 @@ export default function Footer() {
         <p>Campus Marketplace, for Southeast University students.</p>
         <p>Meet on campus, inspect before you pay.</p>
       </div>
+      <p className="mx-auto max-w-7xl px-4 pb-6 text-xs text-muted">
+        When you use Ask AI, the listing's photo, title, description, category, condition and price are processed by
+        Google Gemini. No names, emails or phone numbers are sent.
+      </p>
     </footer>
   )
 }
