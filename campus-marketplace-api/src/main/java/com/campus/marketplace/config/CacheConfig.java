@@ -14,6 +14,7 @@ import org.springframework.core.Ordered;
 import java.time.Duration;
 import java.util.List;
 
+import static com.campus.marketplace.config.CacheNames.ASSISTANT_ANSWERS;
 import static com.campus.marketplace.config.CacheNames.CATEGORY_COUNTS;
 import static com.campus.marketplace.config.CacheNames.FEATURED_LISTINGS;
 import static com.campus.marketplace.config.CacheNames.FEE_QUOTE;
@@ -30,6 +31,7 @@ import static com.campus.marketplace.config.CacheNames.USER_PROFILE;
  * categoryCounts     'all'       Map&lt;Category, Long&gt; for the chips   5 min / 1
  * userProfile        user id     CurrentUserResponse                10 min / 5000
  * feeQuote           listing id  FeeQuote                           5 min / 2000
+ * assistantAnswers   'id:mode:price'  AssistantResponse (SPECS without a need, VERDICT)  6 h / 2000
  * </pre>
  *
  * <h3>Rules that keep this correct</h3>
@@ -81,7 +83,10 @@ public class CacheConfig {
                 cache(FEATURED_LISTINGS, Duration.ofMinutes(1), 1),
                 cache(CATEGORY_COUNTS, Duration.ofMinutes(5), 1),
                 cache(USER_PROFILE, Duration.ofMinutes(10), 5_000),
-                cache(FEE_QUOTE, Duration.ofMinutes(5), 2_000)));
+                cache(FEE_QUOTE, Duration.ofMinutes(5), 2_000),
+                // Long on purpose: every miss is a Gemini call against a small free daily quota. Evicted by listing
+                // id prefix when the listing changes (ListingCacheEvictor.evictAssistantAnswers).
+                cache(ASSISTANT_ANSWERS, Duration.ofHours(6), 2_000)));
         return manager;
     }
 

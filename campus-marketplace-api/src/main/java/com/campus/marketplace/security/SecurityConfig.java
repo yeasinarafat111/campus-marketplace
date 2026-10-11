@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()
                         // Liveness/readiness probe; the only actuator endpoint exposed (see application.yml).
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        // Feature switches the frontend reads before login (nothing secret).
+                        .requestMatchers(HttpMethod.GET, "/api/config").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // Must come before the public rule below: "/api/listings/*" would also match "mine".
                         .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()

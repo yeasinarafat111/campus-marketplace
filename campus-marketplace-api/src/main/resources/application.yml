@@ -118,6 +118,29 @@ app:
     success-url: ${PAYMENT_SUCCESS_URL:http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}}
     cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:3000/payments/cancel}
     feature-duration: ${PAYMENT_FEATURE_DURATION:7d}
+  # "Ask AI" on the listing page (Gemini). Off unless ASSISTANT_ENABLED=true.
+  assistant:
+    enabled: ${ASSISTANT_ENABLED:false}
+    # gemini = the real API; fake = canned answers for local demos (no key, no network).
+    gateway: ${ASSISTANT_GATEWAY:gemini}
+    # Mounted from Secret Manager on Cloud Run. Never put it in a plain env var or a file.
+    api-key: ${GEMINI_API_KEY:}
+    model: ${ASSISTANT_MODEL:gemini-3.8-flash}
+    base-url: ${ASSISTANT_BASE_URL:https://generativelanguage.googleapis.com}
+    # Google Search grounding. The free tier has no grounding quota for current models (calls fail with 429).
+    search-enabled: ${ASSISTANT_SEARCH_ENABLED:false}
+    # "Is it a good buy?" needs real prices, so it stays off until a search source is available.
+    verdict-enabled: ${ASSISTANT_VERDICT_ENABLED:false}
+    thinking-level: ${ASSISTANT_THINKING_LEVEL:low}
+    # 0 = unlimited (the default: nothing on our side ever refuses an assistant request).
+    per-user-per-hour: ${ASSISTANT_PER_USER_PER_HOUR:0}
+    global-per-day: ${ASSISTANT_GLOBAL_PER_DAY:0}
+    timeout: ${ASSISTANT_TIMEOUT:25s}
+    max-image-bytes: ${ASSISTANT_MAX_IMAGE_BYTES:4194304}
+    # Approximate mid-market rate (about 123 BDT per USD in October 2026). Update it when the rate moves.
+    bdt-per-usd: ${ASSISTANT_BDT_PER_USD:123}
+    # Besides any *.bd domain. Facebook is left out on purpose: facebook.com prices can be from any country.
+    bangladesh-domains: ${ASSISTANT_BANGLADESH_DOMAINS:bikroy.com,daraz.com.bd,startech.com.bd,ryans.com,techlandbd.com,pickaboo.com}
   otp:
     expiration: ${OTP_EXPIRATION:10m}
     max-attempts: ${OTP_MAX_ATTEMPTS:5}

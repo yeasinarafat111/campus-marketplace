@@ -57,6 +57,21 @@ app:
     # Dummy key; tests mock CheckoutGateway or build params without calling Stripe.
     secret-key: sk_test_dummy
     webhook-secret: whsec_test_secret
+  assistant:
+    enabled: true
+    gateway: fake      # tests replace AssistantGateway with a mock where they need to see the prompt
+    api-key:
+    model: test-model
+    base-url: http://localhost:1
+    search-enabled: false
+    verdict-enabled: true   # the verdict maths has tests; production keeps it off
+    thinking-level: low
+    per-user-per-hour: 0    # unlimited, as in production; the rate-limit tests set their own
+    global-per-day: 0
+    timeout: 2s
+    max-image-bytes: 4194304
+    bdt-per-usd: 120
+    bangladesh-domains: bikroy.com,daraz.com.bd,startech.com.bd,ryans.com,techlandbd.com,pickaboo.com
   payments:
     currency: usd
     fee:

@@ -90,6 +90,11 @@ public class GlobalExceptionHandler {
         return build(ex.getStatus(), ex.getMessage(), req, null);
     }
 
+    @ExceptionHandler(AssistantUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleAssistantUnavailable(AssistantUnavailableException ex, HttpServletRequest req) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), req, null);
+    }
+
     @ExceptionHandler(ImageUploadException.class)
     public ResponseEntity<ErrorResponse> handleImageUpload(ImageUploadException ex, HttpServletRequest req) {
         return build(ex.getStatus(), ex.getMessage(), req, null);

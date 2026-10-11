@@ -8,6 +8,7 @@ public final class CacheNames {
     public static final String CATEGORY_COUNTS = "categoryCounts";
     public static final String USER_PROFILE = "userProfile";
     public static final String FEE_QUOTE = "feeQuote";
+    public static final String ASSISTANT_ANSWERS = "assistantAnswers";
 
     private CacheNames() {
     }
