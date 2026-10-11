@@ -145,6 +145,16 @@ class GeminiAssistantGatewayTest {
     }
 
     @Test
+    void aSlow5xx_isNotRetried_soTheTotalStaysUnderTheBrowserTimeout() {
+        status.set(503);
+        delayMs.set(300L);
+        GeminiAssistantGateway gateway = gateway(false);
+        gateway.setRetryOnlyWithin(java.time.Duration.ofMillis(100));
+        assertThatThrownBy(() -> gateway.generate(prompt(false))).isInstanceOf(AssistantUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(1);
+    }
+
+    @Test
     void badKey_403_isUnavailable_withoutRetrying() {
         status.set(403);
         assertThatThrownBy(() -> gateway(false).generate(prompt(false))).isInstanceOf(AssistantUnavailableException.class);

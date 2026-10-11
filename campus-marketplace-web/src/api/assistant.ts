@@ -63,7 +63,8 @@ export const MAX_TURN_TEXT = 2000
 
 export const askAssistant = (listingId: number, request: AssistantRequest) =>
   client
-    // Longer than the server's Gemini budget (25 s, plus one quick retry on a 5xx), so the server's friendly answer always arrives first.
+    // Longer than the server's Gemini budget (45 s; a 5xx is retried only if it came back within 10 s), so the
+    // server's friendly answer always arrives first.
     .post<AssistantResponse>(`/api/listings/${listingId}/assistant`, request, { timeout: 60_000 })
     .then((r) => r.data)
 

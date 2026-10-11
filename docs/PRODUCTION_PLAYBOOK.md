@@ -674,7 +674,7 @@ Every answer shows its web sources and "AI estimate. Specs and prices may be wro
 - `AssistantGateway` with `GeminiAssistantGateway` (RestClient, `x-goog-api-key`, `google_search` tool, timeout
   from config) and `FakeAssistantGateway` (`ASSISTANT_GATEWAY=fake`, for tests and local demos).
 - `AssistantProperties` (`app.assistant.*`): `ASSISTANT_ENABLED` (default false), `ASSISTANT_MODEL`,
-  `GEMINI_API_KEY` (Secret Manager only), per-user limit (10/hour), global limit (150/day), timeout (25s).
+  `GEMINI_API_KEY` (Secret Manager only), per-user limit (10/hour), global limit (150/day), timeout (25s, raised to 45s on 2026-10-12).
 - Off or no key → 503, and `GET /api/config` returns `assistantEnabled=false` so the UI hides the button.
 - Gemini gets the first Cloudinary photo (fetched server-side, ≤4 MB, only from `res.cloudinary.com`), title,
   description, category, condition, price and currency. Never a name, email or phone.

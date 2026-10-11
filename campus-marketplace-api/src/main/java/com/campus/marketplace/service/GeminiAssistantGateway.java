@@ -52,6 +52,11 @@ public class GeminiAssistantGateway implements AssistantGateway {
 
     /** Google answers 503 "high demand" now and then for a second or two; one retry hides most of those. */
     static final Duration RETRY_DELAY = Duration.ofMillis(1200);
+    /**
+     * Only a quick failure is retried, so a retry can't double the wait: the browser gives up after 60 s, and a
+     * slow 5xx followed by a full second attempt could take longer than that.
+     */
+    private Duration retryOnlyWithin = Duration.ofSeconds(10);
 
     @Override
     public Reply generate(Prompt prompt) {
@@ -59,11 +64,13 @@ public class GeminiAssistantGateway implements AssistantGateway {
             throw AssistantUnavailableException.off();
         }
         Map<String, Object> request = requestBody(prompt);
+        long started = System.nanoTime();
         try {
             return parse(call(request));
         } catch (RestClientResponseException e) {
-            if (!e.getStatusCode().is5xxServerError()) {
-                // 429 (quota used up) and 4xx (bad key or model): retrying won't help.
+            boolean quick = Duration.ofNanos(System.nanoTime() - started).compareTo(retryOnlyWithin) < 0;
+            if (!e.getStatusCode().is5xxServerError() || !quick) {
+                // 429 (quota used up) and 4xx (bad key or model): retrying won't help. A slow 5xx: no time left.
                 log.warn("Gemini call failed: HTTP {}", e.getStatusCode().value());
                 throw AssistantUnavailableException.busy();
             }
@@ -88,6 +95,11 @@ public class GeminiAssistantGateway implements AssistantGateway {
         }
         // 429 (quota used up), 503 (overloaded) and anything else read the same to the student.
         throw AssistantUnavailableException.busy();
+    }
+
+    /** For tests, so a "slow" failure doesn't take ten seconds. */
+    void setRetryOnlyWithin(Duration retryOnlyWithin) {
+        this.retryOnlyWithin = retryOnlyWithin;
     }
 
     private JsonNode call(Map<String, Object> request) {

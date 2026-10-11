@@ -135,7 +135,7 @@ app:
     # 0 = unlimited (the default: nothing on our side ever refuses an assistant request).
     per-user-per-hour: ${ASSISTANT_PER_USER_PER_HOUR:0}
     global-per-day: ${ASSISTANT_GLOBAL_PER_DAY:0}
-    timeout: ${ASSISTANT_TIMEOUT:25s}
+    timeout: ${ASSISTANT_TIMEOUT:45s}
     max-image-bytes: ${ASSISTANT_MAX_IMAGE_BYTES:4194304}
     # Approximate mid-market rate (about 123 BDT per USD in October 2026). Update it when the rate moves.
     bdt-per-usd: ${ASSISTANT_BDT_PER_USD:123}

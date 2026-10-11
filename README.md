@@ -55,7 +55,7 @@ No names, emails or phone numbers. The seller's text is treated as untrusted dat
 Google may use the content it receives to improve its products. The site footer says this too.
 
 **Switches.** `ASSISTANT_ENABLED` (default false), `GEMINI_API_KEY` (from Secret Manager only), `ASSISTANT_MODEL`,
-`ASSISTANT_SEARCH_ENABLED`, `ASSISTANT_VERDICT_ENABLED`, `ASSISTANT_THINKING_LEVEL`, `ASSISTANT_TIMEOUT` (25s),
+`ASSISTANT_SEARCH_ENABLED`, `ASSISTANT_VERDICT_ENABLED`, `ASSISTANT_THINKING_LEVEL`, `ASSISTANT_TIMEOUT` (45s),
 `ASSISTANT_BDT_PER_USD` (123), `ASSISTANT_BANGLADESH_DOMAINS`. `ASSISTANT_GATEWAY=fake` gives canned answers for
 local demos without a key.
 
