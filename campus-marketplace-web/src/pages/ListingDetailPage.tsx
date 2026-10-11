@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { CONDITION_LABELS, MEETUP_LABELS, getSellerProfile, type Listing } from '../api/listings'
 import { Stars } from '../components/StarRating'
 import { parseApiError } from '../api/errors'
+import AskAiButton from '../components/AskAiButton'
 import ListingBadges from '../components/ListingBadges'
 import ListingPaymentActions from '../components/ListingPaymentActions'
 import MessageSellerButton from '../components/MessageSellerButton'
@@ -72,7 +73,10 @@ export default function ListingDetailPage() {
               <p className="mt-1 text-sm text-muted">
                 {formatCategory(listing.category)} · Listed {timeAgo(listing.createdAt)}
               </p>
-              {!isOwner && <SaveButton listingId={listing.id} withLabel className="mt-3 border border-line" />}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {!isOwner && <SaveButton listingId={listing.id} withLabel className="border border-line" />}
+                <AskAiButton listing={listing} />
+              </div>
 
               <div className={`mt-5 flex-col gap-2 ${managingReservation ? 'flex' : 'hidden lg:flex'}`}>
                 <ListingActions listing={listing} isOwner={isOwner} block />
