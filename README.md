@@ -19,6 +19,45 @@ Live: https://campusmarketplacebackend.web.app (payments run in Stripe **test mo
   after 72 hours unless reported. Seller cancel refunds the deposit; release or expiry keeps it.
 - **Chat:** conversations per listing, live over WebSocket (STOMP), unread badge, read receipts.
 - **Admin:** users, listings, orders and payouts, problem reports, a revenue ledger with a chart, history and CSV.
+- **AI shopping assistant:** "Ask AI" on a listing, powered by Google Gemini (see below).
+
+## AI shopping assistant
+
+On a listing page, logged-in students tap **Ask AI** (sparkle icon). A bottom sheet (phones) or side panel
+(desktop) offers:
+
+- **Full specs:** Gemini identifies the product from the cover photo, title and description and lists its
+  specifications. An optional "What will you use it for?" box ("CSE coursework", "gaming") tailors the list and says
+  whether the item fits that need.
+- **Chat:** any question about the item, in English or Bangla. Follow-ups keep up to 6 previous turns. The
+  conversation lives only in the browser; the server stores nothing.
+- **Check live prices:** buttons that open Google AI Mode, Bikroy and Daraz searches for the identified product in
+  a new tab (links built in the browser; nothing is fetched from those sites).
+
+Answers are plain text labelled "From AI knowledge, not web-checked. Check before you buy." If Gemini is out of
+quota or failing, the panel says so (with the admin's contact) and the rest of the page keeps working.
+
+**Model and limits.** `ASSISTANT_MODEL` (default `gemini-3.8-flash`) on the Gemini API free tier. Google Search
+grounding is not available on the free tier for current models (it returns 429), so answers come from the model's
+own knowledge and **"Is it a good buy?" is switched off** (`ASSISTANT_VERDICT_ENABLED=false`): without a search
+source it could only make prices up. The price-check code stays in place for when a search source is added: Gemini
+would report Bangladeshi prices in BDT in a fixed JSON block, and the server converts them with
+`ASSISTANT_BDT_PER_USD`, takes the median and decides the verdict (≤90% good deal, ≤110% fair, above that
+overpriced, fewer than 2 prices not enough data). Even then the search can't be strictly limited to Bangladesh: it
+is steered by the prompt and filtered by source domain (`*.bd` plus an allowlist), and prices count only from
+Bangladeshi pages the answer was grounded on. Free-tier quotas are set per Google project and shown in AI Studio;
+our own per-user and global limits exist (`ASSISTANT_PER_USER_PER_HOUR`, `ASSISTANT_GLOBAL_PER_DAY`) but are off
+(0 = unlimited) so the app never refuses a request itself. SPECS answers (without a need) are cached for 6 hours
+per listing and price and evicted when the listing changes.
+
+**Privacy.** Only the listing's cover photo, title, description, category, condition and price are sent to Google.
+No names, emails or phone numbers. The seller's text is treated as untrusted data in the prompt. On the free tier,
+Google may use the content it receives to improve its products. The site footer says this too.
+
+**Switches.** `ASSISTANT_ENABLED` (default false), `GEMINI_API_KEY` (from Secret Manager only), `ASSISTANT_MODEL`,
+`ASSISTANT_SEARCH_ENABLED`, `ASSISTANT_VERDICT_ENABLED`, `ASSISTANT_THINKING_LEVEL`, `ASSISTANT_TIMEOUT` (25s),
+`ASSISTANT_BDT_PER_USD` (123), `ASSISTANT_BANGLADESH_DOMAINS`. `ASSISTANT_GATEWAY=fake` gives canned answers for
+local demos without a key.
 
 ## Architecture
 
@@ -83,6 +122,7 @@ Names only; see `campus-marketplace-api/.env.example`. Secrets belong in a secre
   `PAYMENT_CANCEL_URL`, `PAYMENT_FEE_THRESHOLD`, `PAYMENT_FEE_LOW_RATE`, `PAYMENT_FEE_HIGH_RATE`,
   `PAYMENT_FEE_MINIMUM_CENTS`, `PAYMENT_POSTING_FEE_ENABLED`, `PAYMENT_POSTING_FEE_THRESHOLD`,
   `PAYMENT_FEATURE_DURATION`, `RESERVATION_DURATION`, `ORDER_AUTO_COMPLETE_AFTER`
+- **AI assistant:** `ASSISTANT_ENABLED`, `GEMINI_API_KEY`, `ASSISTANT_MODEL`, `ASSISTANT_*` (see above)
 - **App:** `APP_CORS_ALLOWED_ORIGINS`, `FRONTEND_URL`, `APP_CACHE_ENABLED`, `APP_RATE_LIMIT_ENABLED`,
   `APP_TRUSTED_PROXIES`, `REPORTING_ZONE`, `SERVER_PORT`
 - **Frontend:** `VITE_API_URL`
@@ -91,7 +131,7 @@ Names only; see `campus-marketplace-api/.env.example`. Secrets belong in a secre
 
 ```bash
 cd campus-marketplace-api && ./mvnw test          # backend (H2)
-cd campus-marketplace-web && npm run lint && npm run build
+cd campus-marketplace-web && npm run lint && npm run build && npm test
 ```
 
 CI (`.github/workflows/ci.yml`) runs both on every push and pull request to `main`.
