@@ -653,6 +653,52 @@ components.
 
 ---
 
+## Phase 9: AI shopping assistant (Gemini, free tier)
+
+An "Ask AI" button on the listing detail page. It opens a panel (a bottom sheet on phones, a side dialog on
+desktop) with three tools:
+1. **Full specs.** Gemini identifies the product from the cover photo, title and description, searches the
+   web and lists its specifications. An optional "What will you use it for?" box tailors them and says whether
+   the item fits that need.
+2. **Is it a good buy?** Gemini looks up second-hand prices (Bangladesh first, then the region), compares them
+   with this listing's price and condition, and returns a verdict: Good deal / Fair price / Overpriced / Not
+   enough data, with 2 to 3 reasons and the prices it found (market + currency).
+3. **Chat.** Free questions about the product, with up to 6 previous turns kept in the browser only.
+
+Every answer shows its web sources and "AI estimate. Specs and prices may be wrong, check before you buy."
+
+### Backend
+- `POST /api/listings/{id}/assistant` (logged in). `AssistantRequest {mode SPECS|VERDICT|ASK, need ≤200,
+  question ≤500 (required for ASK), history ≤6 turns of {role user|assistant, text ≤2000}}` →
+  `AssistantResponse {answer, verdict (VERDICT only), sources[{title,url}], disclaimer, cached}`.
+- `AssistantGateway` with `GeminiAssistantGateway` (RestClient, `x-goog-api-key`, `google_search` tool, timeout
+  from config) and `FakeAssistantGateway` (`ASSISTANT_GATEWAY=fake`, for tests and local demos).
+- `AssistantProperties` (`app.assistant.*`): `ASSISTANT_ENABLED` (default false), `ASSISTANT_MODEL`,
+  `GEMINI_API_KEY` (Secret Manager only), per-user limit (10/hour), global limit (150/day), timeout (25s).
+- Off or no key → 503, and `GET /api/config` returns `assistantEnabled=false` so the UI hides the button.
+- Gemini gets the first Cloudinary photo (fetched server-side, ≤4 MB, only from `res.cloudinary.com`), title,
+  description, category, condition, price and currency. Never a name, email or phone.
+- The seller's text is untrusted data in a delimited block; the system prompt says to ignore instructions in
+  it, stay on topic, never invent prices or sources, and start VERDICT answers with a fixed `VERDICT:` line.
+- `assistantAnswers` cache (6 h): SPECS without a need and VERDICT, keyed by listing + mode + price, evicted
+  when the listing is edited, its photos change, it is sold or deleted. ASK and SPECS-with-need are never cached.
+- Limits per user and global (sliding windows, 429 + Retry-After). Gemini 429/5xx/timeout → 503 "busy".
+  Logs carry only mode, listing id, latency and status.
+
+### Frontend
+- Sparkles "Ask AI" button near the title (only when `assistantEnabled`; logged out: "Log in to ask AI about
+  this item"). Radix Dialog panel, quick actions, need input, chat input, loading/busy/rate-limited/disabled
+  states, verdict badge. Plain text only; source links open in a new tab with `rel="noopener noreferrer"`.
+- Works at 360/390 px with the on-screen keyboard open.
+
+### Verify
+- `./mvnw test`, `npm run lint && npm run build` green.
+- Local run with the fake gateway, headless browser at 390 px and desktop, screenshots in `docs/screenshots/`.
+- A few real Gemini calls locally (key read from Secret Manager into that one process only).
+- Deploy with the secret mounted and the flag off, smoke-test, then turn it on and test live.
+
+---
+
 ## Progress
 
 Claude Code ticks these off as it goes (`[x]`) and commits the change with the phase.
@@ -671,6 +717,7 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [x] **P7** (deployed 2026-10-05, backend rev 00016, scripted smoke test passed) condition · up to 5 photos (`listing_images`) · saved listings · seller profile · reports + admin queue · notifications (bell + live push, 6h reservation reminder) · ratings · admin KPI tiles
 - [~] **P8** (subset done 2026-10-05) rate limits · route code-splitting · OG tags + favicon · hosting headers (no CSP) · README + DEMO.md. Not done: Flyway, structured logging, API docs, seed script (seeded by hand)
+- [ ] **P9** AI shopping assistant: Gemini gateway + fake · /api/config · limits · cache · Ask AI panel · README/DEMO/privacy line · deploy (flag off, then on)
 
 ## Report template (end of every phase)
 
