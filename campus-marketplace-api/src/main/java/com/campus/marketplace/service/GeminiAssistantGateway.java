@@ -5,7 +5,6 @@ import com.campus.marketplace.exception.AssistantUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -51,33 +50,62 @@ public class GeminiAssistantGateway implements AssistantGateway {
         }
     }
 
+    /** Google answers 503 "high demand" now and then for a second or two; one retry hides most of those. */
+    static final Duration RETRY_DELAY = Duration.ofMillis(1200);
+
     @Override
     public Reply generate(Prompt prompt) {
         if (!properties.hasApiKey()) {
             throw AssistantUnavailableException.off();
         }
-        JsonNode body;
+        Map<String, Object> request = requestBody(prompt);
         try {
-            body = restClient.post()
-                    .uri("/v1beta/models/{model}:generateContent", properties.model())
-                    .header("x-goog-api-key", properties.apiKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody(prompt))
-                    .retrieve()
-                    .body(JsonNode.class);
+            return parse(call(request));
         } catch (RestClientResponseException e) {
-            HttpStatusCode status = e.getStatusCode();
-            log.warn("Gemini call failed: HTTP {}", status.value());
-            // 429 (quota used up), 503 (overloaded) and anything else read the same to the student.
-            throw AssistantUnavailableException.busy();
+            if (!e.getStatusCode().is5xxServerError()) {
+                // 429 (quota used up) and 4xx (bad key or model): retrying won't help.
+                log.warn("Gemini call failed: HTTP {}", e.getStatusCode().value());
+                throw AssistantUnavailableException.busy();
+            }
+            log.info("Gemini call failed: HTTP {}, retrying once", e.getStatusCode().value());
         } catch (ResourceAccessException e) {
+            // A timeout already used the whole budget.
             log.warn("Gemini call failed: timeout or connection error");
             throw AssistantUnavailableException.busy();
         } catch (RestClientException e) {
             log.warn("Gemini call failed: unreadable response");
             throw AssistantUnavailableException.busy();
         }
-        return parse(body);
+        pause();
+        try {
+            return parse(call(request));
+        } catch (RestClientResponseException e) {
+            log.warn("Gemini call failed: HTTP {}", e.getStatusCode().value());
+        } catch (ResourceAccessException e) {
+            log.warn("Gemini call failed: timeout or connection error");
+        } catch (RestClientException e) {
+            log.warn("Gemini call failed: unreadable response");
+        }
+        // 429 (quota used up), 503 (overloaded) and anything else read the same to the student.
+        throw AssistantUnavailableException.busy();
+    }
+
+    private JsonNode call(Map<String, Object> request) {
+        return restClient.post()
+                .uri("/v1beta/models/{model}:generateContent", properties.model())
+                .header("x-goog-api-key", properties.apiKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    private static void pause() {
+        try {
+            Thread.sleep(RETRY_DELAY.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     Map<String, Object> requestBody(Prompt prompt) {

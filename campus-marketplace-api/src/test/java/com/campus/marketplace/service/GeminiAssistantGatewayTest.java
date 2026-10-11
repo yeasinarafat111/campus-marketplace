@@ -34,6 +34,9 @@ class GeminiAssistantGatewayTest {
     private final AtomicReference<String> seenPath = new AtomicReference<>();
     private final AtomicReference<String> seenKey = new AtomicReference<>();
     private final AtomicReference<JsonNode> seenBody = new AtomicReference<>();
+    private final java.util.concurrent.atomic.AtomicInteger requests = new java.util.concurrent.atomic.AtomicInteger();
+    /** When set, the first request gets this status and later ones get {@link #status}. */
+    private final AtomicReference<Integer> firstStatus = new AtomicReference<>();
 
     @BeforeEach
     void start() throws IOException {
@@ -47,9 +50,11 @@ class GeminiAssistantGatewayTest {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-            byte[] out = responseBody.get().getBytes(StandardCharsets.UTF_8);
+            int n = requests.incrementAndGet();
+            int code = n == 1 && firstStatus.get() != null ? firstStatus.get() : status.get();
+            byte[] out = (code == 200 ? responseBody.get() : "{\"error\":{\"code\":" + code + "}}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(status.get(), out.length);
+            exchange.sendResponseHeaders(code, out.length);
             exchange.getResponseBody().write(out);
             exchange.close();
         });
@@ -118,17 +123,32 @@ class GeminiAssistantGatewayTest {
     }
 
     @Test
-    void quotaUsedUp_429_isUnavailable() {
+    void quotaUsedUp_429_isUnavailable_withoutRetrying() {
         status.set(429);
-        responseBody.set("{\"error\":{\"code\":429,\"status\":\"RESOURCE_EXHAUSTED\"}}");
         assertThatThrownBy(() -> gateway(false).generate(prompt(false))).isInstanceOf(AssistantUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(1);
     }
 
     @Test
-    void serverError_5xx_isUnavailable() {
+    void serverError_5xx_isRetriedOnce_thenUnavailable() {
         status.set(503);
-        responseBody.set("{\"error\":{\"code\":503,\"status\":\"UNAVAILABLE\"}}");
         assertThatThrownBy(() -> gateway(false).generate(prompt(false))).isInstanceOf(AssistantUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(2);
+    }
+
+    @Test
+    void aBriefOverload_isHiddenByTheRetry() {
+        firstStatus.set(503);
+        responseBody.set("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]}}]}");
+        assertThat(gateway(false).generate(prompt(false)).text()).isEqualTo("ok");
+        assertThat(requests.get()).isEqualTo(2);
+    }
+
+    @Test
+    void badKey_403_isUnavailable_withoutRetrying() {
+        status.set(403);
+        assertThatThrownBy(() -> gateway(false).generate(prompt(false))).isInstanceOf(AssistantUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(1);
     }
 
     @Test
