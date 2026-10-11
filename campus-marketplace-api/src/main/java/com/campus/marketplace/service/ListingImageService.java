@@ -42,6 +42,7 @@ public class ListingImageService {
     private final ImageStorageService imageStorage;
     private final CurrentUserProvider currentUser;
     private final TransactionTemplate transactionTemplate;
+    private final ListingCacheEvictor cacheEvictor;
 
     private static final String[] NO_KEYS = {};
 
@@ -64,6 +65,7 @@ public class ListingImageService {
                 }
                 listing.addImage(uploaded.secureUrl(), uploaded.publicId());
                 listing.syncCover();
+                cacheEvictor.evictAssistantAnswers(listingId); // the assistant looks at the cover photo
                 // Flush so the new photo has its id before the response is built.
                 listingRepository.flush();
                 return ListingResponse.from(listing, userId);
@@ -94,6 +96,7 @@ public class ListingImageService {
             } else {
                 listing.syncCover();
             }
+            cacheEvictor.evictAssistantAnswers(listingId);
             return ListingResponse.from(listing, userId);
         });
         toDelete.forEach(this::deleteQuietly);
@@ -118,6 +121,7 @@ public class ListingImageService {
             listing.getImages().clear();
             listing.getImages().addAll(ordered);
             listing.syncCover();
+            cacheEvictor.evictAssistantAnswers(listingId);
             return ListingResponse.from(listing, userId);
         });
     }

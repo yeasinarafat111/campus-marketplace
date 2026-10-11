@@ -60,6 +60,7 @@ public class ListingService {
     private final PublicListingReader publicReader;
     private final PostingFeePolicy postingFeePolicy;
     private final ListingImageService imageService;
+    private final ListingCacheEvictor cacheEvictor;
 
     /**
      * Public browse: ACTIVE listings whose owner hasn't been deactivated. Without an explicit {@code sort},
@@ -231,6 +232,7 @@ public class ListingService {
                     + "). Delete this listing and post it again at the new price.");
         }
         apply(request, listing);
+        cacheEvictor.evictAssistantAnswers(id);
         // A listing that was waiting for its fee goes live as soon as it no longer needs one (the owner lowered
         // the price to the free tier, or posting fees were switched off).
         if (listing.getStatus() == ListingStatus.PENDING_PAYMENT && !postingFeePolicy.applies(listing.getPrice())) {
@@ -263,6 +265,7 @@ public class ListingService {
             }
             listing.setStatus(ListingStatus.SOLD);
             listing.setSoldAt(Instant.now());
+            cacheEvictor.evictAssistantAnswers(id);
         }
         return ListingResponse.from(listing, currentUser.requireId());
     }
@@ -296,6 +299,7 @@ public class ListingService {
         imageService.deleteFilesAfterCommit(listing.getImages().stream().map(i -> i.getPublicId())
                 .filter(java.util.Objects::nonNull).toList());
         listingRepository.delete(listing);
+        cacheEvictor.evictAssistantAnswers(id);
     }
 
     private void deleteImageQuietly(String publicId) {

@@ -31,6 +31,7 @@ public class AdminService {
     private final CurrentUserProvider currentUser;
     private final PaymentService paymentService;
     private final ListingImageService imageService;
+    private final ListingCacheEvictor cacheEvictor;
 
     /** All users, newest first. */
     @Transactional(readOnly = true)
@@ -114,6 +115,7 @@ public class AdminService {
         imageService.deleteFilesAfterCommit(listing.getImages().stream().map(i -> i.getPublicId())
                 .filter(Objects::nonNull).toList());
         listingRepository.delete(listing);
+        cacheEvictor.evictAssistantAnswers(id);
         log.info("Admin {} deleted listing {}", currentUser.requireId(), id);
     }
 }

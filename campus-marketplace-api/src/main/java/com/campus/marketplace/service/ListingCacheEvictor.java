@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import static com.campus.marketplace.config.CacheNames.ASSISTANT_ANSWERS;
 import static com.campus.marketplace.config.CacheNames.CATEGORY_COUNTS;
 import static com.campus.marketplace.config.CacheNames.FEATURED_LISTINGS;
 import static com.campus.marketplace.config.CacheNames.FEE_QUOTE;
@@ -33,7 +34,24 @@ public class ListingCacheEvictor {
             evict(FEE_QUOTE, listingId);
             clear(FEATURED_LISTINGS);
             clear(CATEGORY_COUNTS);
+            evictAssistantNow(listingId);
         });
+    }
+
+    /**
+     * The listing's cached assistant answers (SPECS and VERDICT, any price). Their keys are {@code id:MODE:price},
+     * so they go by prefix. Call on every change to what the assistant was told: text, price, photos, sold, deleted.
+     */
+    public void evictAssistantAnswers(Long listingId) {
+        afterCommit(() -> evictAssistantNow(listingId));
+    }
+
+    private void evictAssistantNow(Long listingId) {
+        Cache cache = cacheManager.getCache(ASSISTANT_ANSWERS);
+        if (cache != null && cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> caffeine) {
+            String prefix = listingId + ":";
+            caffeine.asMap().keySet().removeIf(key -> key.toString().startsWith(prefix));
+        }
     }
 
     /** Many listings may have changed (expiry sweep, a seller's name or account changed). */
@@ -43,6 +61,7 @@ public class ListingCacheEvictor {
             clear(FEE_QUOTE);
             clear(FEATURED_LISTINGS);
             clear(CATEGORY_COUNTS);
+            clear(ASSISTANT_ANSWERS);
         });
     }
 
