@@ -717,7 +717,7 @@ Claude Code ticks these off as it goes (`[x]`) and commits the change with the p
 - [x] **P6** Conversations/messages · STOMP auth · inbox/thread UI · unread badge · reconnect catch-up
 - [x] **P7** (deployed 2026-10-05, backend rev 00016, scripted smoke test passed) condition · up to 5 photos (`listing_images`) · saved listings · seller profile · reports + admin queue · notifications (bell + live push, 6h reservation reminder) · ratings · admin KPI tiles
 - [~] **P8** (subset done 2026-10-05) rate limits · route code-splitting · OG tags + favicon · hosting headers (no CSP) · README + DEMO.md. Not done: Flyway, structured logging, API docs, seed script (seeded by hand)
-- [ ] **P9** AI shopping assistant: Gemini gateway + fake · /api/config · limits · cache · Ask AI panel · README/DEMO/privacy line · deploy (flag off, then on)
+- [~] **P9** AI shopping assistant: Gemini gateway + fake · /api/config · limits (off by default) · cache · Ask AI panel · Check live prices links · README/DEMO/privacy line. Free tier has no Search grounding for current models, so answers come from model knowledge and the price verdict ships switched off (`ASSISTANT_VERDICT_ENABLED=false`). Deploy pending
 
 ## Report template (end of every phase)
 
