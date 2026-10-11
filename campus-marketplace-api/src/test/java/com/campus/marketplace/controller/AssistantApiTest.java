@@ -73,7 +73,8 @@ class AssistantApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assistantEnabled").value(true))
                 .andExpect(jsonPath("$.assistantVerdictEnabled").value(true))
-                .andExpect(jsonPath("$.assistantWebSearch").value(false));
+                .andExpect(jsonPath("$.assistantWebSearch").value(false))
+                .andExpect(jsonPath("$.bdtPerUsd").value(120));
     }
 
     // --- validation ---
@@ -144,7 +145,9 @@ class AssistantApiTest {
     void specs_answersWithTheKnowledgeDisclaimer() throws Exception {
         mockMvc.perform(ask(listing.getId(), token, "{\"mode\":\"SPECS\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.startsWith("Product: sample item")))
+                .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.startsWith("Fake answer, medium confidence")))
+                .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("PRODUCT:"))))
+                .andExpect(jsonPath("$.productName").value("Sample Phone X1 8/128GB"))
                 .andExpect(jsonPath("$.verdict").doesNotExist())
                 .andExpect(jsonPath("$.sources.length()").value(0))
                 .andExpect(jsonPath("$.disclaimer").value(AssistantResponse.DISCLAIMER_KNOWLEDGE))
@@ -167,7 +170,24 @@ class AssistantApiTest {
     void markdownInAnswers_isStrippedToPlainText() throws Exception {
         fake.respondWith(new AssistantGateway.Reply("## Specs\n* **RAM:** 8 GB\n* `Storage`: 128 GB", List.of()));
         mockMvc.perform(ask(listing.getId(), token, "{\"mode\":\"SPECS\"}"))
-                .andExpect(jsonPath("$.answer").value("Specs\n- RAM: 8 GB\n- Storage: 128 GB"));
+                .andExpect(jsonPath("$.answer").value("Specs\n- RAM: 8 GB\n- Storage: 128 GB"))
+                .andExpect(jsonPath("$.productName").value("Samsung Galaxy A54")); // no PRODUCT line: the title
+    }
+
+    @Test
+    void specs_unknownProduct_fallsBackToTheTitle() throws Exception {
+        fake.respondWith(new AssistantGateway.Reply("**PRODUCT:** UNKNOWN\nLooks like a phone.", List.of()));
+        mockMvc.perform(ask(listing.getId(), token, "{\"mode\":\"SPECS\"}"))
+                .andExpect(jsonPath("$.answer").value("Looks like a phone."))
+                .andExpect(jsonPath("$.productName").value("Samsung Galaxy A54"));
+    }
+
+    @Test
+    void specs_overlongProductName_fallsBackToTheTitle() throws Exception {
+        fake.respondWith(new AssistantGateway.Reply("PRODUCT: " + "very ".repeat(30) + "long\n- RAM: 8 GB", List.of()));
+        mockMvc.perform(ask(listing.getId(), token, "{\"mode\":\"SPECS\"}"))
+                .andExpect(jsonPath("$.answer").value("- RAM: 8 GB"))
+                .andExpect(jsonPath("$.productName").value("Samsung Galaxy A54"));
     }
 
     @Test
@@ -184,7 +204,9 @@ class AssistantApiTest {
         mockMvc.perform(ask(listing.getId(), token, "{\"mode\":\"SPECS\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unavailable").value(true))
-                .andExpect(jsonPath("$.answer").value(AssistantResponse.UNAVAILABLE_MESSAGE));
+                .andExpect(jsonPath("$.answer").value(AssistantResponse.UNAVAILABLE_MESSAGE))
+                // The "Check live prices" links still work: they use the listing title.
+                .andExpect(jsonPath("$.productName").value("Samsung Galaxy A54"));
     }
 
     // --- privacy and injection ---

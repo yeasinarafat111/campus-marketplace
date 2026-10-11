@@ -17,6 +17,8 @@ import java.util.List;
  * @param typicalPriceLabel VERDICT only: "Typical price in Bangladesh: ≈ $102", or null
  * @param conversionNote    VERDICT only: "converted at 1 USD = 123 BDT, approximate"
  * @param foundPrices       VERDICT only: the Bangladeshi prices that counted
+ * @param productName       the exact product as the model identified it in SPECS ("Samsung Galaxy A54 8/128GB"), else
+ *                          the listing title. The frontend builds its "Check live prices" search links from it
  */
 public record AssistantResponse(
         String answer,
@@ -30,7 +32,8 @@ public record AssistantResponse(
         BigDecimal bdtPerUsd,
         String typicalPriceLabel,
         String conversionNote,
-        List<FoundPrice> foundPrices
+        List<FoundPrice> foundPrices,
+        String productName
 ) {
     public static final String DISCLAIMER_WEB = "AI estimate. Specs and prices may be wrong, check before you buy.";
     public static final String DISCLAIMER_KNOWLEDGE = "From AI knowledge, not web-checked. Check before you buy.";
@@ -49,16 +52,19 @@ public record AssistantResponse(
                              String sourceUrl, String label) {
     }
 
-    public static AssistantResponse text(String answer, List<Source> sources, String disclaimer) {
-        return new AssistantResponse(answer, null, sources, disclaimer, false, false, null, null, null, null, null, List.of());
+    public static AssistantResponse text(String answer, List<Source> sources, String disclaimer, String productName) {
+        return new AssistantResponse(answer, null, sources, disclaimer, false, false, null, null, null, null, null, List.of(),
+                productName);
     }
 
-    public static AssistantResponse unavailableAnswer() {
-        return new AssistantResponse(UNAVAILABLE_MESSAGE, null, List.of(), null, false, true, null, null, null, null, null, List.of());
+    /** @param productName the listing title, so the price-check links still work when the model is out of quota */
+    public static AssistantResponse unavailableAnswer(String productName) {
+        return new AssistantResponse(UNAVAILABLE_MESSAGE, null, List.of(), null, false, true, null, null, null, null, null,
+                List.of(), productName);
     }
 
     public AssistantResponse asCached() {
         return new AssistantResponse(answer, verdict, sources, disclaimer, true, unavailable, listingPriceUsd, medianUsd,
-                bdtPerUsd, typicalPriceLabel, conversionNote, foundPrices);
+                bdtPerUsd, typicalPriceLabel, conversionNote, foundPrices, productName);
     }
 }

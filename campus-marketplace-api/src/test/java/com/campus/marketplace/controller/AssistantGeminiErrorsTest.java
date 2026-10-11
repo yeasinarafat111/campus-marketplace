@@ -100,7 +100,8 @@ class AssistantGeminiErrorsTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unavailable").value(true))
                 .andExpect(jsonPath("$.answer").value(AssistantResponse.UNAVAILABLE_MESSAGE))
-                .andExpect(jsonPath("$.answer").value("Out of tokens, please contact admin. Admin E-mail: 2023100000351@seu.edu.bd"));
+                .andExpect(jsonPath("$.answer").value("Out of tokens, please contact admin. Admin E-mail: 2023100000351@seu.edu.bd"))
+                .andExpect(jsonPath("$.productName").value("Phone"));
         // The rest of the listing page is unaffected.
         mockMvc.perform(get("/api/listings/{id}", listing.getId())).andExpect(status().isOk());
     }

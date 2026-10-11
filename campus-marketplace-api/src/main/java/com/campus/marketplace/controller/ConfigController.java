@@ -16,6 +16,6 @@ public class ConfigController {
     @GetMapping("/api/config")
     public PublicConfigResponse config() {
         return new PublicConfigResponse(assistant.isAvailable(), assistant.isVerdictAvailable(),
-                assistant.isAvailable() && assistant.searchEnabled());
+                assistant.isAvailable() && assistant.searchEnabled(), assistant.bdtPerUsd());
     }
 }

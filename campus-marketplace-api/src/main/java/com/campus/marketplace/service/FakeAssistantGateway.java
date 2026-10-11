@@ -65,8 +65,8 @@ public class FakeAssistantGateway implements AssistantGateway {
         pause();
         return switch (prompt.mode()) {
             case SPECS -> new Reply(last.contains("will use it for")
-                    ? "Product: sample item (fake answer, medium confidence)\n- Fits your need: yes, for light use\n- Weight: 1.2 kg\n- Battery: 8 hours"
-                    : "Product: sample item (fake answer, medium confidence)\n- Weight: 1.2 kg\n- Battery: 8 hours\n- Ports: 2 x USB-C\nCheck in person: screen and battery health.",
+                    ? "PRODUCT: Sample Phone X1 8/128GB\nFake answer, medium confidence\n- Fits your need: yes, for light use\n- Weight: 1.2 kg\n- Battery: 8 hours"
+                    : "PRODUCT: Sample Phone X1 8/128GB\nFake answer, medium confidence\n- Weight: 1.2 kg\n- Battery: 8 hours\n- Ports: 2 x USB-C\nCheck in person: screen and battery health.",
                     prompt.webSearch() ? List.of(new Source("example.com", "https://example.com/specs")) : List.of());
             case VERDICT -> new Reply(VERDICT_ANSWER, BANGLADESHI_SOURCES);
             case ASK -> new Reply("Fake answer to: " + firstLine(lastQuestion(prompt)), List.of());

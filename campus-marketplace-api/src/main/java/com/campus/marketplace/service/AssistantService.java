@@ -16,6 +16,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -99,12 +100,12 @@ public class AssistantService {
             reply = gateway.generate(promptBuilder.build(facts, request, photo, search));
         } catch (AssistantUnavailableException e) {
             log.info("assistant mode={} listing={} status=provider_error latencyMs={}", request.mode(), listingId, millisSince(started));
-            return AssistantResponse.unavailableAnswer();
+            return AssistantResponse.unavailableAnswer(listing.title());
         }
 
         AssistantResponse response = request.mode() == Mode.VERDICT
                 ? verdict(listing, reply)
-                : answer(reply, search);
+                : answer(request.mode(), reply, search, listing.title());
         boolean answered = !EMPTY_ANSWER.equals(response.answer());
         if (cache != null && answered) {
             cache.put(key, response);
@@ -124,10 +125,45 @@ public class AssistantService {
         return listingId + ":" + mode + ":" + listing.price().setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
-    private static AssistantResponse answer(AssistantGateway.Reply reply, boolean search) {
+    private static AssistantResponse answer(Mode mode, AssistantGateway.Reply reply, boolean search, String title) {
         String text = plainText(reply.text());
+        String productName = title;
+        if (mode == Mode.SPECS) {
+            ProductLine line = productLine(text);
+            text = line.rest();
+            productName = line.name() != null ? line.name() : title;
+        }
         return AssistantResponse.text(text.isBlank() ? EMPTY_ANSWER : text, sources(reply),
-                search ? AssistantResponse.DISCLAIMER_WEB : AssistantResponse.DISCLAIMER_KNOWLEDGE);
+                search ? AssistantResponse.DISCLAIMER_WEB : AssistantResponse.DISCLAIMER_KNOWLEDGE, productName);
+    }
+
+    static final int MAX_PRODUCT_NAME = 80;
+    private static final java.util.regex.Pattern PRODUCT_LINE =
+            java.util.regex.Pattern.compile("^[\\s\\-*]*product\\s*[:：]\\s*(.*?)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** @param name null when the model said UNKNOWN, left the line out, or gave something unusable */
+    record ProductLine(String name, String rest) {
+    }
+
+    /** Reads (and removes) the "PRODUCT: …" line the SPECS prompt asks for, among the first two lines. */
+    static ProductLine productLine(String text) {
+        List<String> lines = new ArrayList<>(text.lines().toList());
+        int seen = 0;
+        for (int i = 0; i < lines.size() && seen < 2; i++) {
+            if (lines.get(i).isBlank()) {
+                continue;
+            }
+            seen++;
+            java.util.regex.Matcher m = PRODUCT_LINE.matcher(lines.get(i));
+            if (m.matches()) {
+                lines.remove(i);
+                String rest = String.join("\n", lines).strip();
+                String name = m.group(1).replaceAll("[\\p{Cntrl}\"]", "").strip();
+                boolean usable = !name.isEmpty() && name.length() <= MAX_PRODUCT_NAME && !name.equalsIgnoreCase("unknown");
+                return new ProductLine(usable ? name : null, rest);
+            }
+        }
+        return new ProductLine(null, text);
     }
 
     /**
@@ -152,7 +188,7 @@ public class AssistantService {
         return new AssistantResponse(answer, decision.verdict(), sources, AssistantResponse.DISCLAIMER_WEB, false, false,
                 listing.price(), decision.medianUsd(), properties.bdtPerUsd(),
                 decision.medianUsd() == null ? null : PriceVerdict.typicalLabel(decision.medianUsd()),
-                PriceVerdict.conversionNote(properties.bdtPerUsd()), decision.prices());
+                PriceVerdict.conversionNote(properties.bdtPerUsd()), decision.prices(), listing.title());
     }
 
     private static List<AssistantResponse.Source> sources(AssistantGateway.Reply reply) {
